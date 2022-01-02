@@ -2,9 +2,6 @@
 
 Sean Pierce
 
-Dec 2021
-
-
 As normal computer user, I've always been a little miffed that I don't have a basic awareness of who is remotely accessing/scanning/attacking my machine. So I created this program to simply notify me of the most obvious events I would want to know about.
 
 ## How to Run:

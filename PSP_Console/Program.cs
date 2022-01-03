@@ -95,7 +95,9 @@ namespace PSP_Console
                 // If the query is too board and is slowing the system down too much then I could probably improve performance 
                 // by scoping down the query: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
                 EventLogQuery subscriptionQuery = new EventLogQuery(
-                    "Security", PathType.LogName, "*[System/EventID=4624]"); 
+                  //  "Security", PathType.LogName, "*[System/EventID=4624]"); 
+                    "Security", PathType.LogName, "*[System[EventID=4624 or EventID=4625]]");
+                // "*[System[EventID=4624 or EventID=4634]]");
 
                 watcher = new EventLogWatcher(subscriptionQuery);
 
@@ -157,7 +159,7 @@ namespace PSP_Console
                     process4624_LogonSuccess(arg);
                     break;
                 case 4625:
-                    process4624_LogonFailed(arg);
+                    process4625_LogonFailed(arg);
                     break;
                 default:
                     Helper.WriteToLog("Unsupported Log ID: " + arg.EventRecord.Id, "ERROR");
@@ -166,11 +168,110 @@ namespace PSP_Console
             }
         } // end of function
 
-        private static void process4624_LogonFailed(EventRecordWrittenEventArgs eventRecord)
+        // Test with: runas /user:attacker cmd
+        private static void process4625_LogonFailed(EventRecordWrittenEventArgs eventRecord)
         {
-            throw new NotImplementedException();
+            String[] xPathArray = new[]
+                {
+                    // (The XPath expression evaluates to null if no Data element exists with the specified name.)
+                    "Event/EventData/Data[@Name='TargetUserSid']",
+                    "Event/EventData/Data[@Name='TargetLogonId']",
+                    "Event/EventData/Data[@Name='LogonType']",
+                    "Event/EventData/Data[@Name='ElevatedToken']",
+                    "Event/EventData/Data[@Name='WorkstationName']",
+                    "Event/EventData/Data[@Name='ProcessName']",
+                    "Event/EventData/Data[@Name='IpAddress']",
+                    "Event/EventData/Data[@Name='IpPort']",
+                    "Event/EventData/Data[@Name='TargetDomainName']",   // The attempted domain
+                    "Event/EventData/Data[@Name='TargetUserName']",   // The attempted username
+                    "Event/EventData/Data[@Name='SubjectUserName']",   // I guess the user that is attempted the auth?
+                    "Event/EventData/Data[@Name='SubjectUserName']",  // WORKGROUP by default
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    Helper.WriteToLog("SID: " + logEventProps[0]);
+                    Helper.WriteToLog("Logon Id: " + logEventProps[1]);
+                    Helper.WriteToLog("Logon Type: " + logEventProps[2]);
+                    Helper.WriteToLog("Elevated Token: " + logEventProps[3]);
+                    Helper.WriteToLog("Workstation Name: " + logEventProps[4]);
+                    Helper.WriteToLog("Process Name: " + logEventProps[5]);
+                    Helper.WriteToLog("IP Address: " + logEventProps[6]);
+                    Helper.WriteToLog("IP Port: " + logEventProps[7]);
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+
+                    // Rule logic. TODO: Create a blacklist style JSON config file
+                    // See https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624
+                    int logonType = 0;
+                    if (int.TryParse(logEventProps[2].ToString(), out logonType))
+                    {
+                        if (logonType != 5 && logonType != 11 && logonType != 7 )
+                        // Further testing needed but I'll probably want to exclude
+                        // 4	Batch (i.e. scheduled task)
+                        // 2	Interactive (logon at keyboard and screen of system)
+                        {
+                            // Output to File, Console and Pop-up
+                            Helper.WriteToLog("Logon Success: ", "OUTPUT");
+                            Helper.WriteToLog("Logon Type: " + logEventProps[2], "OUTPUT");
+                            Helper.WriteToLog("Username: " + logEventProps[8] + "\\" + logEventProps[9], "OUTPUT");
+
+                            string ip = logEventProps[6].ToString();
+                            string port = logEventProps[7].ToString();
+                            if (isRemoteIP(ip) )
+                            {
+                                Helper.WriteToLog("IP Address: " + ip, "OUTPUT");
+                                Helper.WriteToLog("IP Port: " + port, "OUTPUT");
+                            }
+
+                            // Toast 
+                            string message = "";
+                            // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
+                            ToastContentBuilder toast = new ToastContentBuilder()
+                            .AddText("Logon Failed")
+                            .AddText("Logon Type: " + logEventProps[2]);
+
+                            message += "Username: " + logEventProps[8] + "\\" + logEventProps[9];
+                            if (isRemoteIP(ip))
+                            {
+                                message += "\nIP: " + ip + ":" + port;
+                            }
+                            toast.AddText(message);
+                            toast.Show();
+                        }
+                    }
+                    else
+                    {
+                        Helper.WriteToLog("Could not parse the Logon Type number: " + logEventProps[2], "ERROR");
+                    }
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
         }
 
+        private static bool isRemoteIP(string ip)
+        {
+            ip = ip.Trim();
+            if (ip == "" || ip == "-" || ip == "::1" || ip == "127.0.0.1") 
+            { 
+                return false; 
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+
+        // Test with: runas /user:user cmd
         private static void process4624_LogonSuccess(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
@@ -210,7 +311,7 @@ namespace PSP_Console
                     int logonType = 0;
                     if (int.TryParse(logEventProps[2].ToString(), out logonType))
                     {
-                        if (logonType != 5 && logonType != 11 )// && logonType != 7 )
+                        if (logonType != 5 && logonType != 11 && logonType != 7 )
                         // Further testing needed but I'll probably want to exclude
                         // 4	Batch (i.e. scheduled task)
                         // 2	Interactive (logon at keyboard and screen of system)
@@ -220,19 +321,26 @@ namespace PSP_Console
                             Helper.WriteToLog("Logon Type: " + logEventProps[2] , "OUTPUT");
                             Helper.WriteToLog("Username: " + logEventProps[8] + "\\" + logEventProps[9], "OUTPUT");
 
-                            if (logEventProps[6].ToString() != "" && logEventProps[6].ToString() != "-")
-                            {
-                                Helper.WriteToLog("IP Address: " + logEventProps[6], "OUTPUT");
-                                Helper.WriteToLog("IP Port: " + logEventProps[7], "OUTPUT");
+                            string ip = logEventProps[6].ToString();
+                            string port = logEventProps[7].ToString();
+                            if (isRemoteIP(ip) ) { 
+                                Helper.WriteToLog("IP Address: " + ip, "OUTPUT");
+                                Helper.WriteToLog("IP Port: " + port, "OUTPUT");
                             }
 
                             // Toast 
+                            string message = "";
                             // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
-                            new ToastContentBuilder()
+                            ToastContentBuilder toast = new ToastContentBuilder()
                             .AddText("Logon Success")
-                            .AddText("Logon Type: " + logEventProps[2])
-                            .AddText("Username: " + logEventProps[8] + "\\" + logEventProps[9] + "\nIP Address: " + logEventProps[6])
-                            .Show();
+                            .AddText("Logon Type: " + logEventProps[2]);
+                            message += "Username: " + logEventProps[8] + "\\" + logEventProps[9];
+                            if (isRemoteIP(ip))
+                            {
+                                message += "\nIP: " + ip + ":" + port;
+                            }
+                            toast.AddText(message);
+                            toast.Show();
                         }
                     }
                     else
@@ -250,15 +358,6 @@ namespace PSP_Console
             }
         }
 
-        private static void Log_Old(String level, Object message = null)
-        {
-            String messageStr = "";
-            if (message != null)
-            {
-                messageStr = message.ToString();
-            }
-            System.Console.Out.WriteLine(level + " " + messageStr);
-        }
     }
 
 

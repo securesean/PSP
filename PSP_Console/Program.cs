@@ -111,13 +111,13 @@ namespace PSP_Console
                 // Activate the subscription
                 watcher.Enabled = true;
 
-                for (int i = 0; i < 5; i++)
+                while(true)
                 {
-                    Helper.WriteToLog("Waiting for someone to log in...");
+                    //Helper.WriteToLog("Waiting for someone to log in...");
                     // Wait for events to occur. 
                     System.Threading.Thread.Sleep(10000);
-                    Helper.WriteToLog("Done Waiting");
                 }
+                Helper.WriteToLog("Done Waiting");
             }
             catch (EventLogReadingException e)
             {
@@ -185,7 +185,9 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='TargetDomainName']",   // The attempted domain
                     "Event/EventData/Data[@Name='TargetUserName']",   // The attempted username
                     "Event/EventData/Data[@Name='SubjectUserName']",   // I guess the user that is attempted the auth?
-                    "Event/EventData/Data[@Name='SubjectUserName']",  // WORKGROUP by default
+                    "Event/EventData/Data[@Name='SubjectDomainName']",  // WORKGROUP by defaultd
+                    "Event/EventData/Data[@Name='AuthenticationPackageName']",  // auth
+                    "Event/EventData/Data[@Name='LmPackageName']",  // auth package name
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -208,7 +210,7 @@ namespace PSP_Console
                     int logonType = 0;
                     if (int.TryParse(logEventProps[2].ToString(), out logonType))
                     {
-                        if (logonType != 5 && logonType != 11 && logonType != 7 )
+                        if (logonType != 5 && logonType != 11 && logonType != 7 && logonType != 2)
                         // Further testing needed but I'll probably want to exclude
                         // 4	Batch (i.e. scheduled task)
                         // 2	Interactive (logon at keyboard and screen of system)
@@ -217,6 +219,8 @@ namespace PSP_Console
                             Helper.WriteToLog("Logon Success: ", "OUTPUT");
                             Helper.WriteToLog("Logon Type: " + logEventProps[2], "OUTPUT");
                             Helper.WriteToLog("Username: " + logEventProps[8] + "\\" + logEventProps[9], "OUTPUT");
+                            Helper.WriteToLog("Auth: " + logEventProps[12], "OUTPUT");
+                            Helper.WriteToLog("Auth Package: " + logEventProps[13], "OUTPUT");
 
                             string ip = logEventProps[6].ToString();
                             string port = logEventProps[7].ToString();
@@ -233,10 +237,21 @@ namespace PSP_Console
                             .AddText("Logon Failed")
                             .AddText("Logon Type: " + logEventProps[2]);
 
-                            message += "Username: " + logEventProps[8] + "\\" + logEventProps[9];
+                            message += "Attempted Username: " + logEventProps[8] + "\\" + logEventProps[9];
                             if (isRemoteIP(ip))
                             {
-                                message += "\nIP: " + ip + ":" + port;
+                                message += "\nAttacker Hostname: " + logEventProps[11] + "\\" + logEventProps[4];
+                                message += "\nIP: " + ip ;
+                            }
+
+                            // This is too many lines that toast will display (Max: 4)
+                            if (logEventProps[12].ToString() != "" && logEventProps[12].ToString() != "-")
+                            {
+                                message += " Auth: " + logEventProps[12];
+                            }
+                            if (logEventProps[13].ToString() == "" && logEventProps[13].ToString() == "-")
+                            {
+                                message += " Auth Package: " + logEventProps[13];
                             }
                             toast.AddText(message);
                             toast.Show();
@@ -276,19 +291,21 @@ namespace PSP_Console
         {
             String[] xPathArray = new[]
                 {
-                            // (The XPath expression evaluates to null if no Data element exists with the specified name.)
-                            "Event/EventData/Data[@Name='TargetUserSid']",
-                            "Event/EventData/Data[@Name='TargetLogonId']",
-                            "Event/EventData/Data[@Name='LogonType']",
-                            "Event/EventData/Data[@Name='ElevatedToken']",
-                            "Event/EventData/Data[@Name='WorkstationName']",
-                            "Event/EventData/Data[@Name='ProcessName']",
-                            "Event/EventData/Data[@Name='IpAddress']",
-                            "Event/EventData/Data[@Name='IpPort']",
-                            "Event/EventData/Data[@Name='TargetDomainName']",   // The attempted domain
-                            "Event/EventData/Data[@Name='TargetUserName']",   // The attempted username
-                            "Event/EventData/Data[@Name='SubjectUserName']",   // I guess the user that is attempted the auth?
-                            "Event/EventData/Data[@Name='SubjectUserName']",  // WORKGROUP by default
+                    // (The XPath expression evaluates to null if no Data element exists with the specified name.)
+                    "Event/EventData/Data[@Name='TargetUserSid']",
+                    "Event/EventData/Data[@Name='TargetLogonId']",
+                    "Event/EventData/Data[@Name='LogonType']",
+                    "Event/EventData/Data[@Name='ElevatedToken']",
+                    "Event/EventData/Data[@Name='WorkstationName']",
+                    "Event/EventData/Data[@Name='ProcessName']",
+                    "Event/EventData/Data[@Name='IpAddress']",
+                    "Event/EventData/Data[@Name='IpPort']",
+                    "Event/EventData/Data[@Name='TargetDomainName']",   // The attempted domain
+                    "Event/EventData/Data[@Name='TargetUserName']",   // The attempted username
+                    "Event/EventData/Data[@Name='SubjectUserName']",   // I guess the user that is attempted the auth?
+                    "Event/EventData/Data[@Name='SubjectDomainName']",  // WORKGROUP by default
+                    "Event/EventData/Data[@Name='AuthenticationPackageName']",  // auth
+                    "Event/EventData/Data[@Name='LmPackageName']",  // auth package names
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -300,7 +317,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Logon Id: " + logEventProps[1]);
                     Helper.WriteToLog("Logon Type: " + logEventProps[2]);
                     Helper.WriteToLog("Elevated Token: " + logEventProps[3]);
-                    Helper.WriteToLog("Workstation Name: " + logEventProps[4]);
+                    Helper.WriteToLog("Workstation Name: " + logEventProps[4]); // Workstation Name: XPSTAU
                     Helper.WriteToLog("Process Name: " + logEventProps[5]);
                     Helper.WriteToLog("IP Address: " + logEventProps[6]);
                     Helper.WriteToLog("IP Port: " + logEventProps[7]);
@@ -311,7 +328,7 @@ namespace PSP_Console
                     int logonType = 0;
                     if (int.TryParse(logEventProps[2].ToString(), out logonType))
                     {
-                        if (logonType != 5 && logonType != 11 && logonType != 7 )
+                        if (logonType != 5 && logonType != 11 && logonType != 7 && logonType != 2 )
                         // Further testing needed but I'll probably want to exclude
                         // 4	Batch (i.e. scheduled task)
                         // 2	Interactive (logon at keyboard and screen of system)
@@ -320,6 +337,8 @@ namespace PSP_Console
                             Helper.WriteToLog("Logon Success: ", "OUTPUT");
                             Helper.WriteToLog("Logon Type: " + logEventProps[2] , "OUTPUT");
                             Helper.WriteToLog("Username: " + logEventProps[8] + "\\" + logEventProps[9], "OUTPUT");
+                            Helper.WriteToLog("Auth: " + logEventProps[12], "OUTPUT");
+                            Helper.WriteToLog("Auth Package: " + logEventProps[13], "OUTPUT");
 
                             string ip = logEventProps[6].ToString();
                             string port = logEventProps[7].ToString();
@@ -334,10 +353,21 @@ namespace PSP_Console
                             ToastContentBuilder toast = new ToastContentBuilder()
                             .AddText("Logon Success")
                             .AddText("Logon Type: " + logEventProps[2]);
-                            message += "Username: " + logEventProps[8] + "\\" + logEventProps[9];
+                            message += "User: " + logEventProps[8] + "\\" + logEventProps[9];
                             if (isRemoteIP(ip))
                             {
-                                message += "\nIP: " + ip + ":" + port;
+                                message += "\nAttacker Hostname: " + logEventProps[4];
+                                message += "\nIP: " + ip;
+                            }
+
+                            // This is too many lines that toast will display (Max: 4)
+                            if (logEventProps[12].ToString() != "" && logEventProps[12].ToString() != "-")
+                            {
+                                message += " Auth: " + logEventProps[12];
+                            }
+                            if (logEventProps[13].ToString() == "" && logEventProps[13].ToString() == "-")
+                            {
+                                message += " Auth Package: " + logEventProps[13];
                             }
                             toast.AddText(message);
                             toast.Show();

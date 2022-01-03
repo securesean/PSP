@@ -17,6 +17,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 
 
 ## Future Feature Ideas:
+- Toast on-click event copies the the event information to the clipboard: https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/send-local-toast?tabs=desktop
 - Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
 - Add a better sound for the Toast Notification
 - Add icons for the Toast Notification

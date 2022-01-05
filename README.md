@@ -16,6 +16,10 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - 4625 - Logon Failed
    - 4697 - Service Installed
 
+![RemoteLogon](assets/RemoteLogon.png)
+
+![ServiceInstall](assets/ServiceInstall.png)
+
 ## How to Install
 Right click and "Run as Admin". To Enable "Security System Extension" to support these events: https://www.windows-security.org/b355febe2c7a2ae1eaba46c4470d6d4a/security-system-extension . See if your machine is already collecting them with the command: `AuditPol /get /category:* | grep "Security System Extension"` By default it will say, "No Auditing". We (probably) need it to say, "Success"
  - Inspired based on: https://www.stigviewer.com/stig/windows_7/2017-12-01/finding/V-26556 Fix Text (F-29805r1_fix)

@@ -30,10 +30,7 @@ namespace PSP_Console
         private static void readPast()
         {
             // From https://stackoverflow.com/questions/31488175/how-to-find-out-eventproperty-name
-            var query = new EventLogQuery(
-                "Security",
-                PathType.LogName,
-                "*[System[EventID=4624 or EventID=4634]]");
+            var querySecurity = new EventLogQuery( "Security",  PathType.LogName, "*[System[EventID=4624 or EventID=4634]]");
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(new[]
             {
@@ -52,7 +49,7 @@ namespace PSP_Console
                 "Event/EventData/Data[@Name='TargetUserSid']",
                 "Event/EventData/Data[@Name='TargetLogonId']"
             }))
-            using (var reader = new EventLogReader(query))
+            using (var reader = new EventLogReader(querySecurity))
             {
                 // In C# 8: while (reader.ReadEvent() is { } ev)
                 while (reader.ReadEvent() is var ev && ev != null)
@@ -88,28 +85,31 @@ namespace PSP_Console
 
         public static void subscribe()
         {
-            EventLogWatcher watcher = null;
+            EventLogWatcher SecurityWatcher = null;
+            EventLogWatcher SecurityAuditingWatcher = null;
             try
             {
 
                 // If the query is too board and is slowing the system down too much then I could probably improve performance 
                 // by scoping down the query: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
-                EventLogQuery subscriptionQuery = new EventLogQuery(
-                  //  "Security", PathType.LogName, "*[System/EventID=4624]"); 
-                    "Security", PathType.LogName, "*[System[EventID=4624 or EventID=4625]]");
-                // "*[System[EventID=4624 or EventID=4634]]");
+                EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName, "*[System[EventID=4624 or EventID=4625 or EventID=4697]]");
+                // Original: "Security", PathType.LogName, "*[System/EventID=4624]"); 
+                // Modified: "*[System[EventID=4624 or EventID=4634]]");
+                //EventLogQuery SecurityAuditingQuery = new EventLogQuery("Microsoft-Windows-Security-Auditing", PathType.LogName, "*[System[EventID=4697 or EventID=4634]]");
 
-                watcher = new EventLogWatcher(subscriptionQuery);
+                SecurityWatcher = new EventLogWatcher(securityQuery);
+                //SecurityAuditingWatcher = new EventLogWatcher(SecurityAuditingQuery);
 
                 // Make the watcher listen to the EventRecordWritten
                 // events.  When this event happens, the callback method
                 // (EventLogEventRead) is called.
-                watcher.EventRecordWritten +=
-                    new EventHandler<EventRecordWrittenEventArgs>(
-                        EventLogEventRead);
+                SecurityWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>( EventLogEventRead);
+                //SecurityAuditingWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>(EventLogEventRead);
 
                 // Activate the subscription
-                watcher.Enabled = true;
+                SecurityWatcher.Enabled = true;
+                //SecurityAuditingWatcher.Enabled = true;
+
 
                 while(true)
                 {
@@ -130,11 +130,16 @@ namespace PSP_Console
             finally
             {
                 // Stop listening to events
-                watcher.Enabled = false;
+                SecurityWatcher.Enabled = false;
+                //SecurityAuditingWatcher.Enabled = false;
 
-                if (watcher != null)
+                if (SecurityWatcher != null)
                 {
-                    watcher.Dispose();
+                    SecurityWatcher.Dispose();
+                }
+                if (SecurityAuditingWatcher != null)
+                {
+                    SecurityAuditingWatcher.Dispose();
                 }
             }
             Console.ReadKey();
@@ -161,12 +166,75 @@ namespace PSP_Console
                 case 4625:
                     process4625_LogonFailed(arg);
                     break;
+                case 4697:
+                    process4697_ServiceInstalled(arg);
+                    break;
                 default:
                     Helper.WriteToLog("Unsupported Log ID: " + arg.EventRecord.Id, "ERROR");
                     break;
 
             }
         } // end of function
+
+        // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
+        private static void process4697_ServiceInstalled(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    // (The XPath expression evaluates to null if no Data element exists with the specified name.)
+                    "Event/EventData/Data[@Name='SubjectUserName']",
+                    "Event/EventData/Data[@Name='ServiceName']",
+                    "Event/EventData/Data[@Name='ServiceFileName']",
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    Helper.WriteToLog("User who installed Service: " + logEventProps[0]);
+                    Helper.WriteToLog("ServiceName: " + logEventProps[1]);
+                    Helper.WriteToLog("ServiceFileName: " + logEventProps[2]);
+                   
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("User who installed Service: " + logEventProps[0], "OUTPUT");
+                    Helper.WriteToLog("ServiceName: " + logEventProps[1], "OUTPUT");
+                    Helper.WriteToLog("ServiceFileName: " + logEventProps[2], "OUTPUT");
+
+                    /*  ToDo: Test remove service installation via RPC
+                    string ip = logEventProps[6].ToString();
+                    string port = logEventProps[7].ToString();
+                    if (isRemoteIP(ip))
+                    {
+                        Helper.WriteToLog("IP Address: " + ip, "OUTPUT");
+                        Helper.WriteToLog("IP Port: " + port, "OUTPUT");
+                    }
+                    */
+
+                    // Toast 
+                    string message = "";
+                    // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("Service Installed by " + logEventProps[0])
+                    .AddText("ServiceName: " + logEventProps[1])
+                    .AddText("ServiceFileName: " + logEventProps[2]);
+                    toast.Show();
+                    
+                    
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                }
+            }
+        }
 
         // Test with: runas /user:attacker cmd
         private static void process4625_LogonFailed(EventRecordWrittenEventArgs eventRecord)

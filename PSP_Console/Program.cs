@@ -10,6 +10,7 @@ using System.Security.Principal;
  * Sean Pierce
  * Dec 2021
  * Personal Security Product
+ * I wrote this while I was home sick so I'm sorry for the typo's, bad structure, and dumb logic
  * */
 namespace PSP_Console
 {
@@ -22,9 +23,9 @@ namespace PSP_Console
 
             
             // Second way (code below):
-            Helper.WriteToLog("Starting second");
+            Helper.WriteToLog("Starting subscription");
             subscribe();
-            Helper.WriteToLog("Done");
+            Helper.WriteToLog("Done...");
         }
 
         private static void readPast()
@@ -92,9 +93,10 @@ namespace PSP_Console
 
                 // If the query is too board and is slowing the system down too much then I could probably improve performance 
                 // by scoping down the query: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
-                EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName, "*[System[EventID=4624 or EventID=4625 or EventID=4697]]");
-                // Original: "Security", PathType.LogName, "*[System/EventID=4624]"); 
-                // Modified: "*[System[EventID=4624 or EventID=4634]]");
+                EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName,
+                "*[System[EventID=4624 or EventID=4625 or EventID=4697 or EventID=1102]]");
+                //"*[System[EventID=4624 or EventID=4634]]"); // Modified: 
+                //"*[System/EventID=4624]");  // Original:
                 //EventLogQuery SecurityAuditingQuery = new EventLogQuery("Microsoft-Windows-Security-Auditing", PathType.LogName, "*[System[EventID=4697 or EventID=4634]]");
 
                 SecurityWatcher = new EventLogWatcher(securityQuery);
@@ -168,6 +170,9 @@ namespace PSP_Console
                     break;
                 case 4697:
                     process4697_ServiceInstalled(arg);
+                    break;
+                case 1102:
+                    EventProcessor.process1102_SecuritytLogCleared(arg);
                     break;
                 default:
                     Helper.WriteToLog("Unsupported Log ID: " + arg.EventRecord.Id, "ERROR");
@@ -284,7 +289,7 @@ namespace PSP_Console
                         // 2	Interactive (logon at keyboard and screen of system)
                         {
                             // Output to File, Console and Pop-up
-                            Helper.WriteToLog("Logon Success: ", "OUTPUT");
+                            Helper.WriteToLog("Logon Failed: ", "OUTPUT");
                             Helper.WriteToLog("Logon Type: " + logEventProps[2], "OUTPUT");
                             Helper.WriteToLog("Username: " + logEventProps[8] + "\\" + logEventProps[9], "OUTPUT");
                             Helper.WriteToLog("Auth: " + logEventProps[12], "OUTPUT");
@@ -302,8 +307,8 @@ namespace PSP_Console
                             string message = "";
                             // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                             ToastContentBuilder toast = new ToastContentBuilder()
-                            .AddText("Logon Failed")
-                            .AddText("Logon Type: " + logEventProps[2]);
+                            //.AddText("Logon Failed")
+                            .AddText("Logon Failed Type: " + logEventProps[2]);
 
                             message += "Attempted Username: " + logEventProps[8] + "\\" + logEventProps[9];
                             if (isRemoteIP(ip))
@@ -419,8 +424,8 @@ namespace PSP_Console
                             string message = "";
                             // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                             ToastContentBuilder toast = new ToastContentBuilder()
-                            .AddText("Logon Success")
-                            .AddText("Logon Type: " + logEventProps[2]);
+                            //.AddText("Logon Success")
+                            .AddText("Logon Success Type: " + logEventProps[2]);
                             message += "User: " + logEventProps[8] + "\\" + logEventProps[9];
                             if (isRemoteIP(ip))
                             {

@@ -12,9 +12,10 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to %Programdata%\PSP_Logs
 - Supported Events:
-   - 4624 - Logon Success
-   - 4625 - Logon Failed
+   - 4624 - Logon Success 
+   - 4625 - Logon Failed 
    - 4697 - Service Installed
+   - 1102 - Security Log Cleared
 
 ![RemoteLogon](assets/RemoteLogon.png)
 

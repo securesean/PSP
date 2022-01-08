@@ -1,5 +1,6 @@
 ﻿using Microsoft.Toolkit.Uwp.Notifications;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -64,5 +65,20 @@ namespace PSP_Console
 
         }
 
-    }
+        public static bool isRemoteIP(string ip)
+        {
+            ip = ip.Trim();
+            if (ip == "" || ip == "-" || ip == "::1" || ip == "127.0.0.1")
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+
+
+    } // end class
 }

@@ -18,70 +18,11 @@ namespace PSP_Console
     {
         static void Main(string[] args)
         {
-            //Log("Info", "Starting First");
-            //readPast();
-
-
-            // Second way (code below):
-            Helper.WriteToLog("Starting subscription");
+            Helper.WriteToLog("Starting Security Event Subscription");
             subscribe();
-            Helper.WriteToLog("Done...");
-        }
-
-        private static void readPast()
-        {
-            // From https://stackoverflow.com/questions/31488175/how-to-find-out-eventproperty-name
-            var querySecurity = new EventLogQuery("Security", PathType.LogName, "*[System[EventID=4624 or EventID=4634]]");
-
-            using (var loginEventPropertySelector = new EventLogPropertySelector(new[]
-            {
-                // (The XPath expression evaluates to null if no Data element exists with the specified name.)
-                "Event/EventData/Data[@Name='TargetUserSid']",
-                "Event/EventData/Data[@Name='TargetLogonId']",
-                "Event/EventData/Data[@Name='LogonType']",
-                "Event/EventData/Data[@Name='ElevatedToken']",
-                "Event/EventData/Data[@Name='WorkstationName']",
-                "Event/EventData/Data[@Name='ProcessName']",
-                "Event/EventData/Data[@Name='IpAddress']",
-                "Event/EventData/Data[@Name='IpPort']"
-            }))
-            using (var logoffEventPropertySelector = new EventLogPropertySelector(new[]
-            {
-                "Event/EventData/Data[@Name='TargetUserSid']",
-                "Event/EventData/Data[@Name='TargetLogonId']"
-            }))
-            using (var reader = new EventLogReader(querySecurity))
-            {
-                // In C# 8: while (reader.ReadEvent() is { } ev)
-                while (reader.ReadEvent() is var ev && ev != null)
-                {
-                    using (ev)
-                    {
-                        switch (ev.Id)
-                        {
-                            case 4624:
-                                var loginPropertyValues = ((EventLogRecord)ev).GetPropertyValues(loginEventPropertySelector);
-                                var targetUserSid = (SecurityIdentifier)loginPropertyValues[0];
-                                // ...
-
-                                // printing
-                                Helper.WriteToLog(targetUserSid.ToString() + " " + loginPropertyValues);
-                                break;
-
-                            case 4634:
-                                var logoffPropertyValues = ((EventLogRecord)ev).GetPropertyValues(logoffEventPropertySelector);
-                                var targetUserSid2 = (SecurityIdentifier)logoffPropertyValues[0];
-                                // ...
-
-                                // printing
-                                Helper.WriteToLog(targetUserSid2.ToString() + " " + logoffPropertyValues);
-                                break;
-                        }
-                    }
-
-
-                }
-            }
+            
+            Helper.WriteToLog("Press Any key to exit");
+            Console.ReadKey();
         }
 
         public static void subscribe()
@@ -94,10 +35,18 @@ namespace PSP_Console
                 // If the query is too board and is slowing the system down too much then I could probably improve performance 
                 // by scoping down the query: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
                 EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName,
-                "*[System[EventID=4624 or EventID=4625 or EventID=4697 or EventID=1102 or EventID=4610 or EventID=4611 or EventID=4614 or EventID=4622]]");
-                //"*[System[EventID=4624 or EventID=4625 or EventID=4697 or EventID=1102]]");
-                //"*[System[EventID=4624 or EventID=4634]]"); // Modified: 
-                //"*[System/EventID=4624]");  // Original:
+                "*[System[" + 
+                // Logon success/failed
+                "EventID=4624 or EventID=4625 or " + 
+
+                // Cleared Log
+                "EventID=1102 or " +
+
+                // Security System Extention
+                "EventID=4697 or " +    // Server Installed
+                "EventID=4610 or EventID=4611 or EventID=4614 or EventID=4622" +    // Lsass Stuff
+                
+                "]]");
                 //EventLogQuery SecurityAuditingQuery = new EventLogQuery("Microsoft-Windows-Security-Auditing", PathType.LogName, "*[System[EventID=4697 or EventID=4634]]");
 
                 SecurityWatcher = new EventLogWatcher(securityQuery);
@@ -113,14 +62,14 @@ namespace PSP_Console
                 SecurityWatcher.Enabled = true;
                 //SecurityAuditingWatcher.Enabled = true;
 
-
+                // Infine loop because when this function exits, the subscription stops
+                Helper.WriteToLog("Subscribed");
                 while (true)
                 {
-                    //Helper.WriteToLog("Waiting for someone to log in...");
+                    Helper.WriteToLog("Waiting for Events...");
                     // Wait for events to occur. 
                     System.Threading.Thread.Sleep(10000);
                 }
-                Helper.WriteToLog("Done Waiting");
             }
             catch (EventLogReadingException e)
             {
@@ -145,7 +94,8 @@ namespace PSP_Console
                     SecurityAuditingWatcher.Dispose();
                 }
             }
-            Console.ReadKey();
+
+            
         }
 
 

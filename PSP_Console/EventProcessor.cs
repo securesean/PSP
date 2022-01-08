@@ -251,7 +251,7 @@ namespace PSP_Console
 
 
                     // Output to File, Console and Pop-up
-                    Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
+                    Helper.WriteToLog("An Auth Provider was loadead", "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
@@ -275,6 +275,7 @@ namespace PSP_Console
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
+                    "Event/EventData/Data[@Name='LogonProcessName']", // Don't know what the structure of the XML is so TODO: fill in later
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -282,20 +283,28 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    String LogonProcessName = logEventProps[1].ToString();
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
+                    if (
+                            LogonProcessName != "ConsentUI" && // UAC I believe
+                            LogonProcessName != "Secondary Logon Service" && // runas.exe - STIG suggests that this be disabled: https://www.stigviewer.com/stig/windows_10/2017-12-01/finding/V-74719
+                            LogonProcessName != "UserManager"  // Lock screen I believe
 
+                        )
+                    {
+                        // Output to File, Console and Pop-up
+                        Helper.WriteToLog("Lsass Logged on a Process: " + LogonProcessName, "OUTPUT");
 
-                    // Output to File, Console and Pop-up
-                    Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
-
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddText("Lsass Logged on a Process")
-                    .AddText("The source probably needs to be added to the known-good list");
-                    toast.Show();
+                        // Toast 
+                        ToastContentBuilder toast = new ToastContentBuilder()
+                        .AddText("Lsass Logged on a Process: " + LogonProcessName)
+                        .AddText("The source probably needs to be added to the known-good list");
+                        toast.Show();
+                    }
+                    
 
                     Helper.WriteToLog("---------------------------------------");
 

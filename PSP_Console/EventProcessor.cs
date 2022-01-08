@@ -32,13 +32,14 @@ namespace PSP_Console
                     Helper.WriteToLog("User who Cleared Security Log: " + logEventProps[0]);
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
 
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who Cleared Security Log: " + logEventProps[0], "OUTPUT");
 
-                    /*  ToDo: Test remote clearing of a log via RPC
+                    /*  ToDo: Test remote clearing of a log via RPC ( I don't even know if that's possible)
                     string ip = logEventProps[6].ToString();
                     string port = logEventProps[7].ToString();
                     if (isRemoteIP(ip))
@@ -49,7 +50,6 @@ namespace PSP_Console
                     */
 
                     // Toast 
-                    string message = "";
                     // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                     ToastContentBuilder toast = new ToastContentBuilder()
                     .AddText(logEventProps[0] + " Cleared Security Log!");
@@ -231,6 +231,158 @@ namespace PSP_Console
             }
         } // end process4625_LogonFailed
 
+        // "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
+        internal static void process4610_LsassLoadedAuthPackage(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("An Auth Provider was loadead")
+                    .AddText("The source probably needs to be added to the known-good list");
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                }
+            }
+        }
+
+        // 4611 is logged at startup and occasionally afterwards for each logon process on the system. Possible to make a list of known valid ones
+        internal static void process4611_LsassLogon(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("Lsass Logged on a Process")
+                    .AddText("The source probably needs to be added to the known-good list");
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                }
+            }
+        }
+
+        // DLLs that Windows calls into whenenever a user changes his/her password. Malicious ones are Rare but deadly
+        internal static void process4614_NotifcationPackageLoaded(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("Dll was given a password due to password reset")
+                    .AddText("The Dll probably needs to be added to the known-good list"); ;
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                }
+            }
+        }
+
+        // "An Auth Providers or Support Package was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
+        internal static void process4622_LsassLoadedPackage(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("Lsass Loaded a Package!", "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("Lsass Loaded a Package!")
+                    .AddText("This probably needs to be added to the known-good list"); ;
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                }
+            }
+        }
+
 
 
         // Test with: runas /user:user cmd
@@ -289,7 +441,7 @@ namespace PSP_Console
 
                             string ip = logEventProps[6].ToString();
                             string port = logEventProps[7].ToString();
-                            if (Helper.isRemoteIP.(ip))
+                            if (Helper.isRemoteIP(ip))
                             {
                                 Helper.WriteToLog("IP Address: " + ip, "OUTPUT");
                                 Helper.WriteToLog("IP Port: " + port, "OUTPUT");
@@ -336,6 +488,6 @@ namespace PSP_Console
             }
         }
 
-    }
-} // end class
-}
+    } // end class
+} // end namespace
+

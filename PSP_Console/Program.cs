@@ -21,7 +21,7 @@ namespace PSP_Console
             //Log("Info", "Starting First");
             //readPast();
 
-            
+
             // Second way (code below):
             Helper.WriteToLog("Starting subscription");
             subscribe();
@@ -31,7 +31,7 @@ namespace PSP_Console
         private static void readPast()
         {
             // From https://stackoverflow.com/questions/31488175/how-to-find-out-eventproperty-name
-            var querySecurity = new EventLogQuery( "Security",  PathType.LogName, "*[System[EventID=4624 or EventID=4634]]");
+            var querySecurity = new EventLogQuery("Security", PathType.LogName, "*[System[EventID=4624 or EventID=4634]]");
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(new[]
             {
@@ -94,7 +94,8 @@ namespace PSP_Console
                 // If the query is too board and is slowing the system down too much then I could probably improve performance 
                 // by scoping down the query: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
                 EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName,
-                "*[System[EventID=4624 or EventID=4625 or EventID=4697 or EventID=1102]]");
+                "*[System[EventID=4624 or EventID=4625 or EventID=4697 or EventID=1102 or EventID=4610 or EventID=4611 or EventID=4614 or EventID=4622]]");
+                //"*[System[EventID=4624 or EventID=4625 or EventID=4697 or EventID=1102]]");
                 //"*[System[EventID=4624 or EventID=4634]]"); // Modified: 
                 //"*[System/EventID=4624]");  // Original:
                 //EventLogQuery SecurityAuditingQuery = new EventLogQuery("Microsoft-Windows-Security-Auditing", PathType.LogName, "*[System[EventID=4697 or EventID=4634]]");
@@ -105,7 +106,7 @@ namespace PSP_Console
                 // Make the watcher listen to the EventRecordWritten
                 // events.  When this event happens, the callback method
                 // (EventLogEventRead) is called.
-                SecurityWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>( EventLogEventRead);
+                SecurityWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>(EventLogEventRead);
                 //SecurityAuditingWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>(EventLogEventRead);
 
                 // Activate the subscription
@@ -113,7 +114,7 @@ namespace PSP_Console
                 //SecurityAuditingWatcher.Enabled = true;
 
 
-                while(true)
+                while (true)
                 {
                     //Helper.WriteToLog("Waiting for someone to log in...");
                     // Wait for events to occur. 
@@ -160,20 +161,40 @@ namespace PSP_Console
             }
 
 
-            switch(arg.EventRecord.Id)
+            switch (arg.EventRecord.Id)
             {
+                // Natively Supported Events
                 case 4624:
                     EventProcessor.process4624_LogonSuccess(arg);
                     break;
                 case 4625:
                     EventProcessor.process4625_LogonFailed(arg);
                     break;
-                case 4697:
-                    EventProcessor.process4697_ServiceInstalled(arg);
-                    break;
                 case 1102:
                     EventProcessor.process1102_SecuritytLogCleared(arg);
                     break;
+
+                // Events supported by "Security System Extension"
+                case 4697:
+                    EventProcessor.process4697_ServiceInstalled(arg);
+                    break;
+                case 4622:
+                    // Untested: "An Auth Providers or Support Package was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
+                    EventProcessor.process4622_LsassLoadedPackage(arg); 
+                    break;
+                case 4614:
+                    // Untested: DLLs that Windows calls into whenenever a user changes his/her password. Malicious ones are Rare but deadly
+                    EventProcessor.process4614_NotifcationPackageLoaded(arg); 
+                    break;
+                case 4611:
+                    // Untested: 4611 is logged at startup and occasionally afterwards for each logon process on the system. Possible to make a list of known valid ones
+                    EventProcessor.process4611_LsassLogon(arg); 
+                    break;
+                case 4610:
+                    // Untested: "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
+                    EventProcessor.process4610_LsassLoadedAuthPackage(arg); 
+                    break;
+
                 default:
                     Helper.WriteToLog("Unsupported Log ID: " + arg.EventRecord.Id, "ERROR");
                     break;
@@ -181,12 +202,13 @@ namespace PSP_Console
             }
         } // end of function
 
-       
-
-        
 
 
-        
 
 
+
+
+
+
+    }
 }

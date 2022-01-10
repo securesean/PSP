@@ -37,7 +37,9 @@ namespace PSP_Console
                 EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName,
                 "*[System[" + 
                 // Logon success/failed
-                "EventID=4624 or EventID=4625 or " + 
+                "EventID=4624 or EventID=4625 or " +
+                // User Logged on with creds
+                "EventID=4648 or " +
 
                 // Cleared Log
                 "EventID=1102 or " +
@@ -53,6 +55,9 @@ namespace PSP_Console
 
                 // User Deleted
                 "EventID=4726 or " +
+
+                // User Password Reset
+                "EventID=4724 or " +
 
                 // Security System Extention
                 "EventID=4697 or " +    // Server Installed
@@ -151,6 +156,12 @@ namespace PSP_Console
                     break; 
                 case 4732:
                     EventProcessor.process4732_UserAddedToGroup(eventRecord);
+                    break; 
+                case 4648:
+                    EventProcessor.process4648_UserLogonWithCreds(eventRecord);
+                    break; 
+                case 4724:
+                    EventProcessor.process4724_PasswordReset(eventRecord);
                     break; 
 
 

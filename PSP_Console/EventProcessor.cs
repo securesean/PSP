@@ -170,15 +170,109 @@ namespace PSP_Console
             }
         }
 
+        // Test with> net user temp /add ; net user temp Password12345; net user temp /delete
+        internal static void process4724_PasswordReset(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // the user who done it
+                    "Event/EventData/Data[@Name='TargetUserName']", // the user who they logged in as
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    Helper.WriteToLog("A password reset attempt was made");
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+                    // Output to File, Console
+                    Helper.WriteToLog(logEventProps[0] + " performed a performed a password reset for '" + logEventProps[1] + "'", "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText(logEventProps[0] + " performed a performed a password reset for '" + logEventProps[1] + "'");
+                    
+                    toast.Show();
+
+
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        }
+
+        //  runas /user:temp cmd
+        internal static void process4648_UserLogonWithCreds(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // the user who done it
+                    "Event/EventData/Data[@Name='TargetUserName']", // the user who they logged in as
+                    "Event/EventData/Data[@Name='IpAddress']", // where the user logged in initially
+                    "Event/EventData/Data[@Name='ProcessId']", // PID that did it
+                    "Event/EventData/Data[@Name='ProcessName']", // Exe that did it - probably C:\Windows\System32\svchost.exe
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    Helper.WriteToLog("A logon was attempted using explicit credentials. (Usually runas.exe)");
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+                    // Output to File, Console
+                    Helper.WriteToLog(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'", "OUTPUT");
+
+                    string ip = logEventProps[2].ToString();
+                    string pid = logEventProps[3].ToString();
+                    string processName = logEventProps[4].ToString();
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'");
+                    if (Helper.isRemoteIP(ip))
+                    {
+                        toast.AddText("From " + ip);
+                    }
+                    toast.AddText("From " + processName + " (PID: "+pid+")");
+                    toast.Show();
+
+
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        }
+
         // Test with net user temp /add ; net localgroup Administrators /add temp
         // cmd> net localgroup tempgroup /add temp
+        // cmd> net localgroup "Remote Management Users" /add temp
+        // cmd> net localgroup "Hyper-V Administrators" /delete temp;   net localgroup "Hyper-V Administrators" /add temp
         internal static void process4732_UserAddedToGroup(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']",
-                    "Event/EventData/Data[@Name='TargetUserName']",
-                    "Event/EventData/Data[@Name='TargetSid']",  // the SID of the group that 
+                    "Event/EventData/Data[@Name='TargetUserName']", // the group name
+                    "Event/EventData/Data[@Name='TargetSid']",  // the SID of the group  
+                    "Event/EventData/Data[@Name='MemberSid']",  // the SID of the user we're adding to the group 
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -190,14 +284,15 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    string sid = logEventProps[3].ToString();
+                    string translatedUserName = new System.Security.Principal.SecurityIdentifier(sid).Translate(typeof(System.Security.Principal.NTAccount)).ToString();
 
                     // Output to File, Console and Pop-up
-                    Helper.WriteToLog(logEventProps[0] + " enabled the local user " + logEventProps[1], "OUTPUT");
+                    Helper.WriteToLog(logEventProps[0] + " added a user (" + translatedUserName + ") to the local group: '" + logEventProps[1] + "'", "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddText(logEventProps[0] + " enabled the local user " + logEventProps[1]);
+                    .AddText(logEventProps[0] + " added a user (" + translatedUserName + ") to the group: " + logEventProps[1]);
                     if (logEventProps[2].ToString().EndsWith("-544"))
                     {
                         toast.AddText("WARNING: User added to local Admin Group! ");
@@ -291,18 +386,15 @@ namespace PSP_Console
                     }
                     else if (logEventProps[2].ToString().EndsWith("-578"))
                     {
-                        toast.AddText("WARNING: User added to Hyper-V Administrators Group! ");
-                        toast.AddText("Members of this group have complete and unrestricted access to all features of Hyper-V.");
+                        toast.AddText("WARNING: Members of this group have complete and unrestricted access to all features of Hyper-V.");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-579"))
                     {
-                        toast.AddText("WARNING: User added to Access Control Assistance Operators Group! ");
-                        toast.AddText("Members of this group can remotely query authorization attributes and permissions for resources on this computer.");
+                        toast.AddText("WARNING: Members of this group can remotely query authorization attributes and permissions for resources on this computer.");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-580"))
                     {
-                        toast.AddText("WARNING: User added to Remote Management Users Group! ");
-                        toast.AddText("Members of this group can access WMI resources over management protocols (such as WS-Management via the Windows Remote Management service). This applies only to WMI namespaces that grant access to the user.");
+                        toast.AddText("WARNING: Members of this group can access WMI resources over management protocols (such as WS-Management via the Windows Remote Management service). This applies only to WMI namespaces that grant access to the user.");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-10"))
                     {
@@ -311,23 +403,19 @@ namespace PSP_Console
                     }
                     else if (logEventProps[2].ToString().EndsWith("-64-14"))
                     {
-                        toast.AddText("WARNING: User added to SChannel Authentication Group! ");
-                        toast.AddText("A SID that is used when the SChannel authentication package authenticated the client.");
+                        toast.AddText("WARNING: A SID that is used when the SChannel authentication package authenticated the client.");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-64-21"))
                     {
-                        toast.AddText("WARNING: User added to Digest Authentication Group! ");
-                        toast.AddText("A SID that is used when the Digest authentication package authenticated the client.");
+                        toast.AddText("WARNING: A SID that is used when the Digest authentication package authenticated the client.");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-5-80"))
                     {
-                        toast.AddText("WARNING: User added to NT Service Group! ");
-                        toast.AddText("A SID that is used as an NT Service account prefix.");
+                        toast.AddText("WARNING: A SID that is used as an NT Service account prefix.");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-80-0"))
                     {
-                        toast.AddText("WARNING: User added to All Services Group! ");
-                        toast.AddText("A group that includes all service processes that are configured on the system. Membership is controlled by the operating system. SID S-1-5-80-0 equals NT SERVICES\\ALL SERVICES. ");
+                        toast.AddText("WARNING: A group that includes all service processes that are configured on the system. Membership is controlled by the operating system. SID S-1-5-80-0 equals NT SERVICES\\ALL SERVICES. ");
                     }
                     else if (logEventProps[2].ToString().EndsWith("-83-0"))
                     {

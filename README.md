@@ -25,10 +25,14 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - 4614 - Notifcation Package Loaded
    - 4611 - Lsass Logon
    - 4610 - Lsass Loaded Auth Package
+   - 4648 - User Logon With Creds
+   - 4724 - Password Reset
 
 ![RemoteLogon](assets/RemoteLogon.png)
 
 ![ServiceInstall](assets/ServiceInstall.png)
+
+![ServiceInstall](assets/AddedToGroup.png)
 
 ## How to Install
 - Double click and it should pop a UAC prompt

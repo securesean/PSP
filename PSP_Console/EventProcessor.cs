@@ -11,7 +11,7 @@ namespace PSP_Console
 {
     internal class EventProcessor
     {
-
+        static private string EventVaule_NotSet = "%%1793";
         /*
          * Test with :
          * PS: Clear-EventLog Security
@@ -62,7 +62,7 @@ namespace PSP_Console
                 }
                 catch (System.ArgumentOutOfRangeException)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
         }
@@ -121,13 +121,386 @@ namespace PSP_Console
                 }
                 catch (System.ArgumentOutOfRangeException)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
         } // end process4697_ServiceInstalled
 
+        // net user Administrator /active:yes; net user Administrator /active:no
+        internal static void process4726_UserEnabled(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']",
+                    "Event/EventData/Data[@Name='TargetUserName']",
+                    "Event/EventData/Data[@Name='TargetSid']",
+                };
 
-        // Test with: runas /user:attacker cmd
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog(logEventProps[0] + " enabled the local user " + logEventProps[1], "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText(logEventProps[0] + " enabled the local user " + logEventProps[1]);
+                    if (logEventProps[2].ToString().EndsWith("-500"))
+                    {
+                        toast.AddText(logEventProps[1] + " is the local RID 500 Admin account! ");
+                    }
+                        
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        }
+
+        // Test with net user temp /add ; net localgroup Administrators /add temp
+        // cmd> net localgroup tempgroup /add temp
+        internal static void process4732_UserAddedToGroup(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']",
+                    "Event/EventData/Data[@Name='TargetUserName']",
+                    "Event/EventData/Data[@Name='TargetSid']",  // the SID of the group that 
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog(logEventProps[0] + " enabled the local user " + logEventProps[1], "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText(logEventProps[0] + " enabled the local user " + logEventProps[1]);
+                    if (logEventProps[2].ToString().EndsWith("-544"))
+                    {
+                        toast.AddText("WARNING: User added to local Admin Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("--546")) {
+                        toast.AddText("WARNING: User added to local Guest Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-547"))
+                    {
+                        toast.AddText("WARNING: User added to local Power Users Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-548"))
+                    {
+                        toast.AddText("WARNING: User added to local Account Operators Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-549"))
+                    {
+                        toast.AddText("WARNING: User added to local Server Operators Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-551"))
+                    {
+                        toast.AddText("WARNING: User added to local Backup Operators Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-552"))
+                    {
+                        toast.AddText("WARNING: User added to local Replicators Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-554"))
+                    {
+                        toast.AddText("WARNING: User added to backward compatibility group that allows read access on all users and groups in the domain! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-555"))
+                    {
+                        toast.AddText("WARNING: User added to local RDP Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-556"))
+                    {
+                        toast.AddText("WARNING: User added to Network Configuration Operators Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-557"))
+                    {
+                        toast.AddText("WARNING: User added to Incoming Forest Trust Builders Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-558"))
+                    {
+                        toast.AddText("WARNING: User added to Performance Monitor Users Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-559"))
+                    {
+                        toast.AddText("WARNING: User added to Performance Log Users Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-560"))
+                    {
+                        toast.AddText("WARNING: User added to Windows Authorization Access Group Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-544"))
+                    {
+                        toast.AddText("WARNING: User added to Terminal Server License Servers Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-561"))
+                    {
+                        toast.AddText("WARNING: User added to Terminal Server License Servers Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-562"))
+                    {
+                        toast.AddText("WARNING: User added to Distributed COM Users Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-569"))
+                    {
+                        toast.AddText("WARNING: User added to Cryptographic Operators Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-573"))
+                    {
+                        toast.AddText("WARNING: User added to Event Log Readers Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-574"))
+                    {
+                        toast.AddText("WARNING: User added to Certificate Service DCOM Access Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-575"))
+                    {
+                        toast.AddText("WARNING: User added to RDS Remote Access Servers Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-576"))
+                    {
+                        toast.AddText("WARNING: User added to RDS Endpoint Servers Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-577"))
+                    {
+                        toast.AddText("WARNING: User added to RDS Management Servers Group! ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-578"))
+                    {
+                        toast.AddText("WARNING: User added to Hyper-V Administrators Group! ");
+                        toast.AddText("Members of this group have complete and unrestricted access to all features of Hyper-V.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-579"))
+                    {
+                        toast.AddText("WARNING: User added to Access Control Assistance Operators Group! ");
+                        toast.AddText("Members of this group can remotely query authorization attributes and permissions for resources on this computer.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-580"))
+                    {
+                        toast.AddText("WARNING: User added to Remote Management Users Group! ");
+                        toast.AddText("Members of this group can access WMI resources over management protocols (such as WS-Management via the Windows Remote Management service). This applies only to WMI namespaces that grant access to the user.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-10"))
+                    {
+                        toast.AddText("WARNING: User added to NTLM Authentication Group! ");
+                        toast.AddText("A SID that is used when the NTLM authentication package authenticated the client");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-64-14"))
+                    {
+                        toast.AddText("WARNING: User added to SChannel Authentication Group! ");
+                        toast.AddText("A SID that is used when the SChannel authentication package authenticated the client.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-64-21"))
+                    {
+                        toast.AddText("WARNING: User added to Digest Authentication Group! ");
+                        toast.AddText("A SID that is used when the Digest authentication package authenticated the client.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-5-80"))
+                    {
+                        toast.AddText("WARNING: User added to NT Service Group! ");
+                        toast.AddText("A SID that is used as an NT Service account prefix.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-80-0"))
+                    {
+                        toast.AddText("WARNING: User added to All Services Group! ");
+                        toast.AddText("A group that includes all service processes that are configured on the system. Membership is controlled by the operating system. SID S-1-5-80-0 equals NT SERVICES\\ALL SERVICES. ");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-83-0"))
+                    {
+                        toast.AddText("WARNING: User added to NT VIRTUAL MACHINE\\Virtual Machines Group! ");
+                        toast.AddText("The group is created when the Hyper-V role is installed. Membership in the group is maintained by the Hyper-V Management Service (VMMS). This group requires the Create Symbolic Links right (SeCreateSymbolicLinkPrivilege), and also the Log on as a Service right (SeServiceLogonRight).");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-501"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_USER_RID_GUEST Group! ");
+                        toast.AddText("The guest-user account in a domain. Users who do not have an account can automatically sign in to this account.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-513"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_USERS Group! ");
+                        toast.AddText("A group that contains all user accounts in a domain. All users are automatically added to this group.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-514"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_GUESTS Group! ");
+                        toast.AddText("The group Guest account in a domain.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-515"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_COMPUTERS Group! ");
+                        toast.AddText("The Domain Computer group. All computers in the domain are members of this group.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-516"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_CONTROLLERS Group! ");
+                        toast.AddText("The Domain Controller group. All domain controllers in the domain are members of this group.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-517"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_CERT_ADMINS Group! ");
+                        toast.AddText("The certificate publishers' group. Computers running Active Directory Certificate Services are members of this group.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-518"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_SCHEMA_ADMINS Group! ");
+                        toast.AddText("The schema administrators' group. Members of this group can modify the Active Directory schema.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-519"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_ENTERPRISE_ADMINS Group! ");
+                        toast.AddText("	The enterprise administrators' group. Members of this group have full access to all domains in the Active Directory forest. Enterprise administrators are responsible for forest-level operations such as adding or removing new domains.");
+                    }
+                    else if (logEventProps[2].ToString().EndsWith("-520"))
+                    {
+                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_POLICY_ADMINS Group! ");
+                        toast.AddText("The policy administrators' group.");
+                    }
+                    else 
+                    {
+                        toast.AddText("With a cumstom (Unknown) Group");
+                    }
+                    
+
+                        toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        }
+
+        /*
+         * 
+         * Good info: 
+         * https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4720
+         * https://ebookreading.net/view/book/EB9781119390640_12.html
+         * */
+        internal static void process4720_UserCreated(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']",
+                    "Event/EventData/Data[@Name='TargetUserName']",  // newly created account name
+                    "Event/EventData/Data[@Name='PrivilegeList']",
+                    "Event/EventData/Data[@Name='SamAccountName']",
+                    "Event/EventData/Data[@Name='DisplayName']", //  %%1793 is 'not set' for many vaules including this one
+                    "Event/EventData/Data[@Name='UserPrincipalName']",  // '-' is 'not set' 
+                    "Event/EventData/Data[@Name='AllowedToDelegateTo']",  // '-' is 'not set' 
+                    "Event/EventData/Data[@Name='OldUacValue']",  // 
+                    "Event/EventData/Data[@Name='NewUacValue']",  // 
+                    "Event/EventData/Data[@Name='UserAccountControl']",  //  %%2080 %%2082 %%2084
+                    "Event/EventData/Data[@Name='SidHistory']",  // '-' is 'not set' 
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+                    String SubjectUsername = logEventProps[0].ToString();
+                    String TargetUserName = logEventProps[1].ToString();
+                    String PrivilegeList = logEventProps[2].ToString();
+                    String SamAccountName = logEventProps[3].ToString();
+                    String DisplayName = logEventProps[4].ToString();
+                    String UserPrincipalName = logEventProps[5].ToString();
+                    String AllowedToDelegateTo = logEventProps[6].ToString();
+                    String OldUacValue = logEventProps[7].ToString();
+                    String NewUacValue = logEventProps[8].ToString();
+                    String UserAccountControl = logEventProps[9].ToString();
+                    String SidHistory = logEventProps[10].ToString();
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog(SubjectUsername + " Created a User Account: " + TargetUserName , "OUTPUT");
+                    Helper.WriteToLog("TargetUserName: " + TargetUserName, "OUTPUT");
+                    Helper.WriteToLog("SamAccountName: " + SamAccountName, "OUTPUT");
+                    Helper.WriteToLog("DisplayName: " + DisplayName, "OUTPUT");
+                    Helper.WriteToLog("UserPrincipalName: " + UserPrincipalName, "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("User " + SubjectUsername + " created account: " + TargetUserName);
+
+                    string message = "";
+                    // Looking at SAM account name
+                    if(TargetUserName.Trim() != SamAccountName.Trim() && SamAccountName != "-" && SamAccountName.Trim() != "")
+                    {
+                        message += "Sam Account Name: " + SamAccountName + ".  ";
+                    }
+
+                    // Looking at DisplayName
+                    if (TargetUserName.Trim() != DisplayName.Trim() && DisplayName != "-" && DisplayName.Trim() != "" && DisplayName.Trim() != EventVaule_NotSet)
+                    {
+                        message += "Display Name: " + DisplayName + ".  ";
+                    }
+
+                    // Looking at UserPrincipalName
+                    if (TargetUserName.Trim() != UserPrincipalName.Trim() && UserPrincipalName != "-" && UserPrincipalName.Trim() != "" && UserPrincipalName.Trim() != EventVaule_NotSet)
+                    {
+                        message += "Display Name: " + DisplayName + ".  ";
+                    }
+
+                    // Looking at SidHistory
+                    if (SidHistory != "-" && SidHistory.Trim() != "" && SidHistory.Trim() != EventVaule_NotSet)
+                    {
+                        message += "Interesting SID History: " + SidHistory + ".  ";
+                        Helper.WriteToLog("Interesting SID History: " + SidHistory, "OUTPUT");
+                    }
+
+                    // Looking at Deligation
+                    if (AllowedToDelegateTo != "-" && AllowedToDelegateTo.Trim() != "" && AllowedToDelegateTo.Trim() != EventVaule_NotSet)
+                    {
+                        message += "Interesting Deligation Powers: " + AllowedToDelegateTo + ".  ";
+                        Helper.WriteToLog("Interesting Deligation Powers: " + AllowedToDelegateTo, "OUTPUT");
+                    }
+
+                    if (message != "")
+                    {
+                        toast.AddText(message);
+                    }
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        }
+
         public static void process4625_LogonFailed(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
@@ -231,6 +604,91 @@ namespace PSP_Console
             }
         } // end process4625_LogonFailed
 
+
+
+
+        // I found this happend when I deleted a user. 
+        // TODO: Figure out what exactly triggers 4798 LocalGroupEnum
+        // Test with: net user temp /add ; net user temp /delete
+        internal static void process4798_LocalGroupEnum(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']",
+                    "Event/EventData/Data[@Name='TargetUserName']",
+                    "Event/EventData/Data[@Name='CallerProcessName']", 
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("Local Group was Enumerated by " + logEventProps[2], "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("User " + logEventProps[0] + " Enumerated the groups of local user " + logEventProps[1])
+                    .AddText("Process: " + logEventProps[2]);
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        } // process4798_LocalGroupEnum
+
+        // Test with: net user temp /add ; net user temp /delete
+        // TODO: Figure out if I can do this via RPC and do it remotely
+        internal static void process4726_UserDeleted(EventRecordWrittenEventArgs eventRecord)
+        {
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
+                    "Event/EventData/Data[@Name='TargetUserName']", 
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+
+
+                    // Output to File, Console and Pop-up
+                    Helper.WriteToLog("User " + logEventProps[0] + " deleted local user " + logEventProps[1], "OUTPUT");
+
+                    // Toast 
+                    ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddText("User " + logEventProps[0] + " deleted local user " + logEventProps[1]);
+                    //.AddText("The source probably needs to be added to the known-good list");
+                    toast.Show();
+
+                    Helper.WriteToLog("---------------------------------------");
+
+                }
+                catch (System.ArgumentOutOfRangeException)
+                {
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+            }
+        } // process4798_LocalGroupEnum
+
         // "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
         internal static void process4610_LsassLoadedAuthPackage(EventRecordWrittenEventArgs eventRecord)
         {
@@ -264,7 +722,7 @@ namespace PSP_Console
                 }
                 catch (System.ArgumentOutOfRangeException)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
         }
@@ -311,7 +769,7 @@ namespace PSP_Console
                 }
                 catch (System.ArgumentOutOfRangeException)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
         }
@@ -349,7 +807,7 @@ namespace PSP_Console
                 }
                 catch (System.ArgumentOutOfRangeException)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
         }
@@ -387,7 +845,7 @@ namespace PSP_Console
                 }
                 catch (System.ArgumentOutOfRangeException)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array during Service Install alert", "ERROR");
+                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
         }

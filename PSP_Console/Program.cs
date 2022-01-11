@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
 using System.Security.Principal;
+using Windows.Foundation.Collections;
 
 
 
@@ -18,6 +19,27 @@ namespace PSP_Console
     {
         static void Main(string[] args)
         {
+            // Listen to notification activation
+            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            {
+                // Obtain the arguments from the notification
+                ToastArguments argsFromToast = ToastArguments.Parse(toastArgs.Argument);
+
+                // Obtain any user input (text boxes, menu selections) from the notification
+                ValueSet userInput = toastArgs.UserInput;
+
+                // Need to dispatch to UI thread if performing UI operations
+                //Application.Current.Dispatcher.Invoke(delegate
+                //{
+                //    // TODO: Show the corresponding content
+                //    MessageBox.Show("Toast activated. Args: " + toastArgs.Argument);
+                //});
+
+                string eventRecordID = toastArgs.Argument.Replace("conversationId=", "");
+                System.Console.WriteLine("Openning Event Record " + eventRecordID);
+                EventProcessor.WriteAndOpen(eventRecordID);
+            };
+
             Helper.WriteToLog("Starting Security Event Subscription");
             subscribe();
             
@@ -83,7 +105,7 @@ namespace PSP_Console
                 Helper.WriteToLog("Subscribed");
                 while (true)
                 {
-                    Helper.WriteToLog("Waiting for Events...");
+                    //Helper.WriteToLog("Waiting for Events...");
                     // Wait for events to occur. 
                     System.Threading.Thread.Sleep(10000);
                 }
@@ -160,7 +182,7 @@ namespace PSP_Console
                 case 4648:
                     EventProcessor.process4648_UserLogonWithCreds(eventRecord);
                     break; 
-                case 4724:
+                case 4723:
                     EventProcessor.process4724_PasswordReset(eventRecord);
                     break; 
 

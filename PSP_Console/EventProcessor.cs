@@ -11,6 +11,7 @@ namespace PSP_Console
 {
     internal class EventProcessor
     {
+        static private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
         static private string EventVaule_NotSet = "%%1793";
         /*
          * Test with :
@@ -34,28 +35,24 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                   
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who Cleared Security Log: " + logEventProps[0], "OUTPUT");
 
-                    /*  ToDo: Test remote clearing of a log via RPC ( I don't even know if that's possible)
-                    string ip = logEventProps[6].ToString();
-                    string port = logEventProps[7].ToString();
-                    if (isRemoteIP(ip))
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
                     {
-                        Helper.WriteToLog("IP Address: " + ip, "OUTPUT");
-                        Helper.WriteToLog("IP Port: " + port, "OUTPUT");
+                        RecordedEvents.Add(record_id, eventRecord);
                     }
-                    */
+                    
 
                     // Toast 
-                    // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                     ToastContentBuilder toast = new ToastContentBuilder()
                     .AddText(logEventProps[0] + " Cleared Security Log!");
+                    toast.AddArgument("conversationId", record_id);
                     toast.Show();
-
-
 
                     Helper.WriteToLog("---------------------------------------");
 
@@ -65,6 +62,24 @@ namespace PSP_Console
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
             }
+        }
+
+        internal static void WriteAndOpen(string eventRecordString)
+        {
+            long eventRecord = 0;
+            if (long.TryParse(eventRecordString, out eventRecord))
+            {
+                WriteAndOpen(eventRecord);
+            }else
+            {
+                Helper.WriteToLog("Unable to parse Record ID: " + eventRecordString, "ERROR");
+            }
+        }
+
+        private static void WriteAndOpen(long eventRecord)
+        {
+            // eventRecord in RecordedEvents
+            // write the xml out to a file then open it - maybe make a funciton in the helper
         }
 
         // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
@@ -88,8 +103,14 @@ namespace PSP_Console
                     Helper.WriteToLog("ServiceFileName: " + logEventProps[2]);
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who installed Service: " + logEventProps[0], "OUTPUT");
@@ -145,7 +166,12 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog(logEventProps[0] + " enabled the local user " + logEventProps[1], "OUTPUT");
@@ -189,6 +215,13 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
+
                     // Output to File, Console
                     Helper.WriteToLog(logEventProps[0] + " performed a performed a password reset for '" + logEventProps[1] + "'", "OUTPUT");
 
@@ -231,6 +264,13 @@ namespace PSP_Console
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console
                     Helper.WriteToLog(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'", "OUTPUT");
@@ -283,6 +323,13 @@ namespace PSP_Console
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     string sid = logEventProps[3].ToString();
                     string translatedUserName = new System.Security.Principal.SecurityIdentifier(sid).Translate(typeof(System.Security.Principal.NTAccount)).ToString();
@@ -517,6 +564,13 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
+
                     String SubjectUsername = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
                     String PrivilegeList = logEventProps[2].ToString();
@@ -624,6 +678,7 @@ namespace PSP_Console
                     Helper.WriteToLog("IP Address: " + logEventProps[6]);
                     Helper.WriteToLog("IP Port: " + logEventProps[7]);
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Rule logic. TODO: Create a blacklist style JSON config file
                     // See https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624
@@ -641,6 +696,13 @@ namespace PSP_Console
                             Helper.WriteToLog("Username: " + logEventProps[8] + "\\" + logEventProps[9], "OUTPUT");
                             Helper.WriteToLog("Auth: " + logEventProps[12], "OUTPUT");
                             Helper.WriteToLog("Auth Package: " + logEventProps[13], "OUTPUT");
+
+                            // Store in 'Database'
+                            long record_id = (long)eventRecord.EventRecord.RecordId;
+                            if (eventRecord.EventRecord.RecordId != null)
+                            {
+                                RecordedEvents.Add(record_id, eventRecord);
+                            }
 
                             string ip = logEventProps[6].ToString();
                             string port = logEventProps[7].ToString();
@@ -716,7 +778,12 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Local Group was Enumerated by " + logEventProps[2], "OUTPUT");
@@ -756,7 +823,12 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User " + logEventProps[0] + " deleted local user " + logEventProps[1], "OUTPUT");
@@ -794,7 +866,12 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("An Auth Provider was loadead", "OUTPUT");
@@ -841,6 +918,14 @@ namespace PSP_Console
 
                         )
                     {
+                        // Store in 'Database'
+                        long record_id = (long)eventRecord.EventRecord.RecordId;
+                        if (eventRecord.EventRecord.RecordId != null)
+                        {
+                            RecordedEvents.Add(record_id, eventRecord);
+                        }
+
+
                         // Output to File, Console and Pop-up
                         Helper.WriteToLog("Lsass Logged on a Process: " + LogonProcessName, "OUTPUT");
 
@@ -879,7 +964,12 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
@@ -917,7 +1007,12 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-
+                    // Store in 'Database'
+                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    if (eventRecord.EventRecord.RecordId != null)
+                    {
+                        RecordedEvents.Add(record_id, eventRecord);
+                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Lsass Loaded a Package!", "OUTPUT");
@@ -976,6 +1071,7 @@ namespace PSP_Console
                     Helper.WriteToLog("IP Address: " + logEventProps[6]);
                     Helper.WriteToLog("IP Port: " + logEventProps[7]);
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Rule logic. TODO: Create a blacklist style JSON config file
                     // See https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624
@@ -994,6 +1090,13 @@ namespace PSP_Console
                             Helper.WriteToLog("Auth: " + logEventProps[12], "OUTPUT");
                             Helper.WriteToLog("Auth Package: " + logEventProps[13], "OUTPUT");
 
+                            // Store in 'Database'
+                            long record_id = (long)eventRecord.EventRecord.RecordId;
+                            if (eventRecord.EventRecord.RecordId != null)
+                            {
+                                RecordedEvents.Add(record_id, eventRecord);
+                            }
+
                             string ip = logEventProps[6].ToString();
                             string port = logEventProps[7].ToString();
                             if (Helper.isRemoteIP(ip))
@@ -1002,30 +1105,44 @@ namespace PSP_Console
                                 Helper.WriteToLog("IP Port: " + port, "OUTPUT");
                             }
 
-                            // Toast 
-                            string message = "";
-                            // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
-                            ToastContentBuilder toast = new ToastContentBuilder()
-                            //.AddText("Logon Success")
-                            .AddText("Logon Success Type: " + logEventProps[2]);
-                            message += "User: " + logEventProps[8] + "\\" + logEventProps[9];
-                            if (Helper.isRemoteIP(ip))
+                            // For some unknown reason, when this is running on a domain joined machine I will get a
+                            // local network logon from "kerberos" and with no subject information
+                            // and to the machine account. This person appears to be saying the same thing:
+                            // https://docs.microsoft.com/en-us/answers/questions/46899/computer-account-logon.html
+                            if (
+                                (logEventProps[2].ToString() != "3")
+                                &&
+                                (logEventProps[12].ToString() != "Kerberos") 
+                                &&
+                                (!logEventProps[9].ToString().Contains(Environment.MachineName + "$"))  // This might fail if the hostname is longer than 15 chars
+                                )
                             {
-                                message += "\nAttacker Hostname: " + logEventProps[4];
-                                message += "\nIP: " + ip;
-                            }
+                                // Toast 
+                                string message = "";
+                                // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
+                                ToastContentBuilder toast = new ToastContentBuilder()
+                                .AddText("Logon Success Type: " + logEventProps[2]);
 
-                            // This is too many lines that toast will display (Max: 4)
-                            if (logEventProps[12].ToString() != "" && logEventProps[12].ToString() != "-")
-                            {
-                                message += " Auth: " + logEventProps[12];
+                                message += "User: " + logEventProps[8] + "\\" + logEventProps[9];
+                                if (Helper.isRemoteIP(ip))
+                                {
+                                    message += "\nAttacker Hostname: " + logEventProps[4];
+                                    message += "\nIP: " + ip;
+                                }
+
+                                // This is too many lines that toast will display (Max: 4)
+                                if (logEventProps[12].ToString() != "" && logEventProps[12].ToString() != "-")
+                                {
+                                    message += " Auth: " + logEventProps[12];
+                                }
+                                if (logEventProps[13].ToString() == "" && logEventProps[13].ToString() == "-")
+                                {
+                                    message += " Auth Package: " + logEventProps[13];
+                                }
+                                toast.AddText(message);
+                                toast.Show();
                             }
-                            if (logEventProps[13].ToString() == "" && logEventProps[13].ToString() == "-")
-                            {
-                                message += " Auth Package: " + logEventProps[13];
-                            }
-                            toast.AddText(message);
-                            toast.Show();
+                            
                         }
                     }
                     else

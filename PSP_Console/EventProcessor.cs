@@ -253,6 +253,7 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='IpAddress']", // where the user logged in initially
                     "Event/EventData/Data[@Name='ProcessId']", // PID that did it
                     "Event/EventData/Data[@Name='ProcessName']", // Exe that did it - probably C:\Windows\System32\svchost.exe
+                    "Event/EventData/Data[@Name='SubjectUserSid']",
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -265,31 +266,36 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
-                    if (eventRecord.EventRecord.RecordId != null)
+                    // I don't know why, but sometimes the LOCAL SYSTEM (S-1-5-18) will logon with creds as the machine account
+                    // added "Event/EventData/Data[@Name='SubjectUserSid']", 
+                    if (logEventProps[5].ToString() != "S-1-5-18" && !logEventProps[0].ToString().ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
                     {
-                        RecordedEvents.Add(record_id, eventRecord);
+
+                        // Store in 'Database'
+                        long record_id = (long)eventRecord.EventRecord.RecordId;
+                        if (eventRecord.EventRecord.RecordId != null)
+                        {
+                            RecordedEvents.Add(record_id, eventRecord);
+                        }
+
+                        // Output to File, Console
+                        Helper.WriteToLog(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'", "OUTPUT");
+
+                        string ip = logEventProps[2].ToString();
+                        string pid = logEventProps[3].ToString();
+                        string processName = logEventProps[4].ToString();
+
+                        // Toast 
+                        ToastContentBuilder toast = new ToastContentBuilder()
+                        .AddText(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'");
+                        if (Helper.isRemoteIP(ip))
+                        {
+                            toast.AddText("From " + ip);
+                        }
+                        toast.AddText("From " + processName + " (PID: " + pid + ")");
+                        toast.Show();
+
                     }
-
-                    // Output to File, Console
-                    Helper.WriteToLog(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'", "OUTPUT");
-
-                    string ip = logEventProps[2].ToString();
-                    string pid = logEventProps[3].ToString();
-                    string processName = logEventProps[4].ToString();
-
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddText(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'");
-                    if (Helper.isRemoteIP(ip))
-                    {
-                        toast.AddText("From " + ip);
-                    }
-                    toast.AddText("From " + processName + " (PID: "+pid+")");
-                    toast.Show();
-
-
 
                     Helper.WriteToLog("---------------------------------------");
 
@@ -1114,7 +1120,7 @@ namespace PSP_Console
                                 &&
                                 (logEventProps[12].ToString() != "Kerberos") 
                                 &&
-                                (!logEventProps[9].ToString().Contains(Environment.MachineName + "$"))  // This might fail if the hostname is longer than 15 chars
+                                (!logEventProps[9].ToString().ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))  // This might fail if the hostname is longer than 15 chars
                                 )
                             {
                                 // Toast 

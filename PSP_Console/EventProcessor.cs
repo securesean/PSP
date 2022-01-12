@@ -772,7 +772,8 @@ namespace PSP_Console
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']",
                     "Event/EventData/Data[@Name='TargetUserName']",
-                    "Event/EventData/Data[@Name='CallerProcessName']", 
+                    "Event/EventData/Data[@Name='CallerProcessName']",
+                    "Event/EventData/Data[@Name='CallerProcessId']", 
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -784,22 +785,29 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
-                    if (eventRecord.EventRecord.RecordId != null)
+                    string CallerProcessName = logEventProps[2].ToString();
+                    string CallerProcessId = logEventProps[3].ToString();
+
+                    if (CallerProcessName != "-" && CallerProcessId != "0")
                     {
-                        RecordedEvents.Add(record_id, eventRecord);
+
+
+                        // Store in 'Database'
+                        long record_id = (long)eventRecord.EventRecord.RecordId;
+                        if (eventRecord.EventRecord.RecordId != null)
+                        {
+                            RecordedEvents.Add(record_id, eventRecord);
+                        }
+
+                        // Output to File, Console and Pop-up
+                        Helper.WriteToLog("Local Group was Enumerated by " + logEventProps[2], "OUTPUT");
+
+                        // Toast 
+                        ToastContentBuilder toast = new ToastContentBuilder()
+                        .AddText("User " + logEventProps[0] + " Enumerated the groups of local user " + logEventProps[1])
+                        .AddText("Process: " + logEventProps[2]);
+                        toast.Show();
                     }
-
-                    // Output to File, Console and Pop-up
-                    Helper.WriteToLog("Local Group was Enumerated by " + logEventProps[2], "OUTPUT");
-
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddText("User " + logEventProps[0] + " Enumerated the groups of local user " + logEventProps[1])
-                    .AddText("Process: " + logEventProps[2]);
-                    toast.Show();
-
                     Helper.WriteToLog("---------------------------------------");
 
                 }

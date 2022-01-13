@@ -17,6 +17,7 @@ namespace PSP_Console
 {
     class Program
     {
+        static EventProcessor eventProcessor;
         static void Main(string[] args)
         {
             // Listen to notification activation
@@ -40,7 +41,8 @@ namespace PSP_Console
                 EventProcessor.WriteAndOpen(eventRecordID);
             };
 
-            Helper.WriteToLog("Starting Security Event Subscription");
+            Helper.WriteToLog("Initiallizing EventProcessor. Starting Security Event Subscription");
+            eventProcessor = new EventProcessor();
             subscribe();
             
             Helper.WriteToLog("Press Any key to exit");
@@ -154,36 +156,36 @@ namespace PSP_Console
             {
                 // Natively Supported Events
                 case 4624:
-                    EventProcessor.process4624_LogonSuccess(eventRecord);
+                    eventProcessor.process4624_LogonSuccess(eventRecord);
                     break;
                 case 4625:
-                    EventProcessor.process4625_LogonFailed(eventRecord);
+                    eventProcessor.process4625_LogonFailed(eventRecord);
                     break;
                 case 1102:
-                    EventProcessor.process1102_SecuritytLogCleared(eventRecord);
+                    eventProcessor.process1102_SecuritytLogCleared(eventRecord);
                     break;
 
                 // User Related
                 case 4798:
-                    EventProcessor.process4798_LocalGroupEnum(eventRecord);
+                    eventProcessor.process4798_LocalGroupEnum(eventRecord);
                     break;
                 case 4726:
-                    EventProcessor.process4726_UserDeleted(eventRecord);
+                    eventProcessor.process4726_UserDeleted(eventRecord);
                     break;
                 case 4720:
-                    EventProcessor.process4720_UserCreated(eventRecord);
+                    eventProcessor.process4720_UserCreated(eventRecord);
                     break;
                 case 4722:
-                    EventProcessor.process4726_UserEnabled(eventRecord);
+                    eventProcessor.process4726_UserEnabled(eventRecord);
                     break; 
                 case 4732:
-                    EventProcessor.process4732_UserAddedToGroup(eventRecord);
+                    eventProcessor.process4732_UserAddedToGroup(eventRecord);
                     break; 
                 case 4648:
-                    EventProcessor.process4648_UserLogonWithCreds(eventRecord);
+                    eventProcessor.process4648_UserLogonWithCreds(eventRecord);
                     break; 
                 case 4723:
-                    EventProcessor.process4724_PasswordReset(eventRecord);
+                    eventProcessor.process4724_PasswordReset(eventRecord);
                     break; 
 
 
@@ -191,23 +193,23 @@ namespace PSP_Console
 
                 // Events supported by "Security System Extension"
                 case 4697:
-                    EventProcessor.process4697_ServiceInstalled(eventRecord);
+                    eventProcessor.process4697_ServiceInstalled(eventRecord);
                     break;
                 case 4622:
                     // Untested: "An Auth Providers or Support Package was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
-                    EventProcessor.process4622_LsassLoadedPackage(eventRecord); 
+                    eventProcessor.process4622_LsassLoadedPackage(eventRecord); 
                     break;
                 case 4614:
                     // Untested: DLLs that Windows calls into whenenever a user changes his/her password. Malicious ones are Rare but deadly
-                    EventProcessor.process4614_NotifcationPackageLoaded(eventRecord); 
+                    eventProcessor.process4614_NotifcationPackageLoaded(eventRecord); 
                     break;
                 case 4611:
                     // Untested: 4611 is logged at startup and occasionally afterwards for each logon process on the system. Possible to make a list of known valid ones
-                    EventProcessor.process4611_LsassLogon(eventRecord); 
+                    eventProcessor.process4611_LsassLogon(eventRecord); 
                     break;
                 case 4610:
                     // Untested: "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
-                    EventProcessor.process4610_LsassLoadedAuthPackage(eventRecord); 
+                    eventProcessor.process4610_LsassLoadedAuthPackage(eventRecord); 
                     break;
 
                 default:

@@ -1,7 +1,9 @@
 ﻿using Microsoft.Toolkit.Uwp.Notifications;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
+using System.DirectoryServices;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,14 +13,41 @@ namespace PSP_Console
 {
     internal class EventProcessor
     {
-        static private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
-        static private string EventVaule_NotSet = "%%1793";
+        private List<string> localAdminGroupList;
+        private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
+        private string EventVaule_NotSet = "%%1793";
+        
+        public EventProcessor()
+        {
+            // this will launch a background thread that will keep state information on the admin group membership so that when GP is applied
+            // I don't get a flood of alerts saying that a user is suddenly added to the local admin's group when it was already there to begin with
+            localAdminGroupList = getLocalAdminList();
+        }
+
+        private List<string> getLocalAdminList()
+        {
+            List<string> newLocalAdminGroupList = new List<string>();
+
+            DirectoryEntry localMachine = new DirectoryEntry("WinNT://" + Environment.MachineName);
+            DirectoryEntry admGroup = localMachine.Children.Find("administrators", "group");    // ToDo figure out how to do this via SID for internationalization: S-1-5-32-544
+            object members = admGroup.Invoke("members", null);
+            System.Console.WriteLine("Administrators:");
+            foreach (object groupMember in (IEnumerable)members)
+            {
+                DirectoryEntry member = new DirectoryEntry(groupMember);
+                //lstUsers.Items.Add(member.Name);
+                System.Console.WriteLine("\t" + member.Name);
+                newLocalAdminGroupList.Add(member.Name);
+            }
+            return newLocalAdminGroupList;
+        }
+
         /*
          * Test with :
          * PS: Clear-EventLog Security
             cmd: wevtutil.exe cl Security
          * */
-        internal static void process1102_SecuritytLogCleared(EventRecordWrittenEventArgs eventRecord)
+        internal void process1102_SecuritytLogCleared(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -76,14 +105,14 @@ namespace PSP_Console
             }
         }
 
-        private static void WriteAndOpen(long eventRecord)
+        internal static void WriteAndOpen(long eventRecord)
         {
             // eventRecord in RecordedEvents
             // write the xml out to a file then open it - maybe make a funciton in the helper
         }
 
         // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
-        public static void process4697_ServiceInstalled(EventRecordWrittenEventArgs eventRecord)
+        internal void process4697_ServiceInstalled(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -148,7 +177,7 @@ namespace PSP_Console
         } // end process4697_ServiceInstalled
 
         // net user Administrator /active:yes; net user Administrator /active:no
-        internal static void process4726_UserEnabled(EventRecordWrittenEventArgs eventRecord)
+        internal void process4726_UserEnabled(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -197,7 +226,7 @@ namespace PSP_Console
         }
 
         // Test with> net user temp /add ; net user temp Password12345; net user temp /delete
-        internal static void process4724_PasswordReset(EventRecordWrittenEventArgs eventRecord)
+        internal void process4724_PasswordReset(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -244,7 +273,7 @@ namespace PSP_Console
         }
 
         //  runas /user:temp cmd
-        internal static void process4648_UserLogonWithCreds(EventRecordWrittenEventArgs eventRecord)
+        internal void process4648_UserLogonWithCreds(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -311,7 +340,7 @@ namespace PSP_Console
         // cmd> net localgroup tempgroup /add temp
         // cmd> net localgroup "Remote Management Users" /add temp
         // cmd> net localgroup "Hyper-V Administrators" /delete temp;   net localgroup "Hyper-V Administrators" /add temp
-        internal static void process4732_UserAddedToGroup(EventRecordWrittenEventArgs eventRecord)
+        internal void process4732_UserAddedToGroup(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -338,6 +367,7 @@ namespace PSP_Console
                     }
 
                     string sid = logEventProps[3].ToString();
+                    string localGroup = logEventProps[1].ToString();
                     string translatedUserName = new System.Security.Principal.SecurityIdentifier(sid).Translate(typeof(System.Security.Principal.NTAccount)).ToString();
 
                     // Output to File, Console and Pop-up
@@ -346,6 +376,21 @@ namespace PSP_Console
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
                     .AddText(logEventProps[0] + " added a user (" + translatedUserName + ") to the group: " + logEventProps[1]);
+
+
+                    // Is the machine account doing it?
+                    if ( !logEventProps[0].ToString().ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
+                    {
+                        Helper.WriteToLog("Machine Account was the one to query", "OUTPUT");
+                    }
+
+                    if (sid.EndsWith("-544") && localAdminGroupList.Contains(translatedUserName) )
+                    {
+                        Helper.WriteToLog("User was already in Admin Group!", "OUTPUT");
+                    }
+
+
+
                     if (logEventProps[2].ToString().EndsWith("-544"))
                     {
                         toast.AddText("WARNING: User added to local Admin Group! ");
@@ -544,7 +589,7 @@ namespace PSP_Console
          * https://docs.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4720
          * https://ebookreading.net/view/book/EB9781119390640_12.html
          * */
-        internal static void process4720_UserCreated(EventRecordWrittenEventArgs eventRecord)
+        internal void process4720_UserCreated(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -649,7 +694,7 @@ namespace PSP_Console
             }
         }
 
-        public static void process4625_LogonFailed(EventRecordWrittenEventArgs eventRecord)
+        internal void process4625_LogonFailed(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -766,7 +811,7 @@ namespace PSP_Console
         // I found this happend when I deleted a user. 
         // TODO: Figure out what exactly triggers 4798 LocalGroupEnum
         // Test with: net user temp /add ; net user temp /delete
-        internal static void process4798_LocalGroupEnum(EventRecordWrittenEventArgs eventRecord)
+        internal void process4798_LocalGroupEnum(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -788,8 +833,9 @@ namespace PSP_Console
                     string CallerProcessName = logEventProps[2].ToString();
                     string CallerProcessId = logEventProps[3].ToString();
 
-                    if (CallerProcessName != "-" && CallerProcessId != "0")
+                    if ((CallerProcessName != "-" && CallerProcessId != "0"))
                     {
+                        // When alerting for local group enumeration, I think the machine account should just be ignored
 
 
                         // Store in 'Database'
@@ -820,7 +866,7 @@ namespace PSP_Console
 
         // Test with: net user temp /add ; net user temp /delete
         // TODO: Figure out if I can do this via RPC and do it remotely
-        internal static void process4726_UserDeleted(EventRecordWrittenEventArgs eventRecord)
+        internal void process4726_UserDeleted(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -864,7 +910,7 @@ namespace PSP_Console
         } // process4798_LocalGroupEnum
 
         // "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
-        internal static void process4610_LsassLoadedAuthPackage(EventRecordWrittenEventArgs eventRecord)
+        internal void process4610_LsassLoadedAuthPackage(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -907,7 +953,7 @@ namespace PSP_Console
         }
 
         // 4611 is logged at startup and occasionally afterwards for each logon process on the system. Possible to make a list of known valid ones
-        internal static void process4611_LsassLogon(EventRecordWrittenEventArgs eventRecord)
+        internal void process4611_LsassLogon(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -962,7 +1008,7 @@ namespace PSP_Console
         }
 
         // DLLs that Windows calls into whenenever a user changes his/her password. Malicious ones are Rare but deadly
-        internal static void process4614_NotifcationPackageLoaded(EventRecordWrittenEventArgs eventRecord)
+        internal void process4614_NotifcationPackageLoaded(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -1005,7 +1051,7 @@ namespace PSP_Console
         }
 
         // "An Auth Providers or Support Package was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
-        internal static void process4622_LsassLoadedPackage(EventRecordWrittenEventArgs eventRecord)
+        internal void process4622_LsassLoadedPackage(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {
@@ -1050,7 +1096,7 @@ namespace PSP_Console
 
 
         // Test with: runas /user:user cmd
-        public static void process4624_LogonSuccess(EventRecordWrittenEventArgs eventRecord)
+        internal void process4624_LogonSuccess(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
                 {

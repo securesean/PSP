@@ -11,6 +11,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 ## Features:
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to %Programdata%\PSP_Logs
+- Toast on-click event opens the xml log 
 - Supported Events:
    - 4624 - Logon Success 
    - 4625 - Logon Failed 
@@ -42,8 +43,6 @@ As normal computer user, I've always been a little miffed that I don't have a ba
  - GUI - gpedit.msc: Computer Configuration\Windows Settings\Advanced Audit Policy Configuration\System -> "Audit Security System Extension"
 
 ## Future Feature Ideas:
-- Toast on-click event opens the text log
-- Toast on-click event copies the the event information to the clipboard: https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/send-local-toast?tabs=desktop
 - Automatically enable additional logging such as "(Audit) System Security Extention" to start producing events such as 4697 (Service Installed)
 - Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
 - Add a better sound for the Toast Notification

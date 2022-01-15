@@ -2,8 +2,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.DirectoryServices;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,15 +18,15 @@ namespace PSP_Console
         private List<string> localAdminGroupList;
         private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
         private string EventVaule_NotSet = "%%1793";
-        
+
         public EventProcessor()
         {
             // this will launch a background thread that will keep state information on the admin group membership so that when GP is applied
             // I don't get a flood of alerts saying that a user is suddenly added to the local admin's group when it was already there to begin with
-            localAdminGroupList = getLocalAdminList();
+            localAdminGroupList = getLocalAdminEnglishList();
         }
 
-        private List<string> getLocalAdminList()
+        private List<string> getLocalAdminEnglishList()
         {
             List<string> newLocalAdminGroupList = new List<string>();
 
@@ -93,11 +95,12 @@ namespace PSP_Console
             }
         }
 
-        internal static void WriteAndOpen(string eventRecordString)
+        internal void WriteAndOpen(string eventRecordString)
         {
             long eventRecord = 0;
             if (long.TryParse(eventRecordString, out eventRecord))
             {
+                
                 WriteAndOpen(eventRecord);
             }else
             {
@@ -105,13 +108,47 @@ namespace PSP_Console
             }
         }
 
-        internal static void WriteAndOpen(long eventRecord)
+        internal Boolean WriteAndOpen(long eventRecord)
         {
             // eventRecord in RecordedEvents
             // write the xml out to a file then open it - maybe make a funciton in the helper
+            if (RecordedEvents.ContainsKey(eventRecord))
+            {
+                // Create a file to write to.   
+                string path = Helper.path + "\\" + eventRecord.ToString() + ".xml";
+                using (StreamWriter sw = File.CreateText(path))
+                {
+                     EventRecordWrittenEventArgs eventRecordObj;
+                    RecordedEvents.TryGetValue(eventRecord, out eventRecordObj);
+
+                    sw.WriteLine(eventRecordObj.EventRecord.ToXml());
+
+                    ProcessStartInfo startInfo;
+                    startInfo = new ProcessStartInfo(path);
+
+                    startInfo.Verb = "open";    // <<=== put here "Edit" 
+                    //startInfo.Arguments = args;  // <<== probably don't need this one...  
+
+                    Process newProcess = new Process();
+                    newProcess.StartInfo = startInfo;
+
+                    //try
+                    //{
+                    newProcess.Start();
+                    //}
+
+                    return true;
+                }
+
+            } else
+            {
+                return false;
+            }
         }
 
         // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
+        // ToDo: change to'Installed Service: <name>'
+        // And list the executeable that did the installation 
         internal void process4697_ServiceInstalled(EventRecordWrittenEventArgs eventRecord)
         {
             String[] xPathArray = new[]
@@ -159,6 +196,7 @@ namespace PSP_Console
                     // Toast 
                     // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText("Service Installed by " + logEventProps[0])
                     .AddText("ServiceName: " + logEventProps[1])
                     .AddText("ServiceFileName: " + logEventProps[2]);
@@ -207,6 +245,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText(logEventProps[0] + " enabled the local user " + logEventProps[1]);
                     if (logEventProps[2].ToString().EndsWith("-500"))
                     {
@@ -256,6 +295,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText(logEventProps[0] + " performed a performed a password reset for '" + logEventProps[1] + "'");
                     
                     toast.Show();
@@ -316,6 +356,7 @@ namespace PSP_Console
 
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
+                        .AddArgument("conversationId", record_id)
                         .AddText(logEventProps[0] + " performed a logon using explicit creds (Usually runas.exe) as '" + logEventProps[1] + "'");
                         if (Helper.isRemoteIP(ip))
                         {
@@ -375,6 +416,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText(logEventProps[0] + " added a user (" + translatedUserName + ") to the group: " + logEventProps[1]);
 
 
@@ -643,6 +685,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText("User " + SubjectUsername + " created account: " + TargetUserName);
 
                     string message = "";
@@ -767,6 +810,7 @@ namespace PSP_Console
                             string message = "";
                             // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                             ToastContentBuilder toast = new ToastContentBuilder()
+                            .AddArgument("conversationId", record_id)
                             //.AddText("Logon Failed")
                             .AddText("Logon Failed Type: " + logEventProps[2]);
 
@@ -850,6 +894,7 @@ namespace PSP_Console
 
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
+                        .AddArgument("conversationId", record_id)
                         .AddText("User " + logEventProps[0] + " Enumerated the groups of local user " + logEventProps[1])
                         .AddText("Process: " + logEventProps[2]);
                         toast.Show();
@@ -895,6 +940,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText("User " + logEventProps[0] + " deleted local user " + logEventProps[1]);
                     //.AddText("The source probably needs to be added to the known-good list");
                     toast.Show();
@@ -938,6 +984,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText("An Auth Provider was loadead")
                     .AddText("The source probably needs to be added to the known-good list");
                     toast.Show();
@@ -991,6 +1038,7 @@ namespace PSP_Console
 
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
+                        .AddArgument("conversationId", record_id)
                         .AddText("Lsass Logged on a Process: " + LogonProcessName)
                         .AddText("The source probably needs to be added to the known-good list");
                         toast.Show();
@@ -1036,6 +1084,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText("Dll was given a password due to password reset")
                     .AddText("The Dll probably needs to be added to the known-good list"); ;
                     toast.Show();
@@ -1079,6 +1128,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
+                    .AddArgument("conversationId", record_id)
                     .AddText("Lsass Loaded a Package!")
                     .AddText("This probably needs to be added to the known-good list"); ;
                     toast.Show();
@@ -1181,6 +1231,7 @@ namespace PSP_Console
                                 string message = "";
                                 // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                                 ToastContentBuilder toast = new ToastContentBuilder()
+                                .AddArgument("conversationId", record_id)
                                 .AddText("Logon Success Type: " + logEventProps[2]);
 
                                 message += "User: " + logEventProps[8] + "\\" + logEventProps[9];

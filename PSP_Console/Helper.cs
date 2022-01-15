@@ -11,6 +11,10 @@ namespace PSP_Console
         /*
          * level = "INFO", "ERROR", "OUTPUT"
          * */
+
+        public static string path = System.Environment.GetEnvironmentVariable("PROGRAMDATA") + "\\PSP_Logs";
+        public static string filepath = path + "\\PSP_Log_" + DateTime.Now.Date.ToShortDateString().Replace('/', '_') + ".txt";
+
         public static void WriteToLog(string Message, string level = "INFO")
         {
             level = level.ToUpper();
@@ -40,8 +44,6 @@ namespace PSP_Console
             
 
             // Log to file //
-            string path = System.Environment.GetEnvironmentVariable("PROGRAMDATA") + "\\PSP_Logs";
-            string filepath = path + "\\PSP_Log_" + DateTime.Now.Date.ToShortDateString().Replace('/', '_') + ".txt";
             if (!Directory.Exists(path))
             {
                 Directory.CreateDirectory(path);

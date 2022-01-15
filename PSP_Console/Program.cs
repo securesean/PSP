@@ -36,9 +36,9 @@ namespace PSP_Console
                 //    MessageBox.Show("Toast activated. Args: " + toastArgs.Argument);
                 //});
 
-                string eventRecordID = toastArgs.Argument.Replace("conversationId=", "");
+                string eventRecordID = toastArgs.Argument.Substring(15);  // "conversationId="
                 System.Console.WriteLine("Openning Event Record " + eventRecordID);
-                EventProcessor.WriteAndOpen(eventRecordID);
+                eventProcessor.WriteAndOpen(eventRecordID);
             };
 
             Helper.WriteToLog("Initiallizing EventProcessor. Starting Security Event Subscription");

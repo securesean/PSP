@@ -43,7 +43,16 @@ As normal computer user, I've always been a little miffed that I don't have a ba
  - GUI - gpedit.msc: Computer Configuration\Windows Settings\Advanced Audit Policy Configuration\System -> "Audit Security System Extension"
 
 ## Future Feature Ideas:
+- build automated self tests
+- Add an evaulation phase/mode/startup 
+   - list all users/groups in local admin groups
+   - resursively lookup domain groups and users in admin groups
+   - list weird services
+   - list and programs listening on any ports
+   - list the services running on those ports 
+   - detect if "System Security Extention" is enabled
 - Automatically enable additional logging such as "(Audit) System Security Extention" to start producing events such as 4697 (Service Installed)
+- Add button to all events, "Don't show any more alerts with this alert" 
 - Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
 - Add a better sound for the Toast Notification
 - Add icons for the Toast Notification

@@ -17,7 +17,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - 4625 - Logon Failed 
    - 4697 - Service Installed
    - 1102 - Security Log Cleared
-   - 4798 - Local Group Enum
+   - 4798 - Local Group Enum (a little noisy sometimes)
    - 4726 - User Deleted
    - 4720 - User Created
    - 4722 - User Enabled
@@ -43,7 +43,10 @@ As normal computer user, I've always been a little miffed that I don't have a ba
  - GUI - gpedit.msc: Computer Configuration\Windows Settings\Advanced Audit Policy Configuration\System -> "Audit Security System Extension"
 
 ## Future Feature Ideas:
-- build automated self tests
+- Target classic tools:
+   - https://blog.menasec.net/2019/03/threat-hunting-26-remote-windows.html 
+   - https://jpcertcc.github.io/ToolAnalysisResultSheet/
+- Build automated self tests
 - Add an evaulation phase/mode/startup 
    - list all users/groups in local admin groups
    - resursively lookup domain groups and users in admin groups
@@ -52,7 +55,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - list the services running on those ports 
    - detect if "System Security Extention" is enabled
 - Automatically enable additional logging such as "(Audit) System Security Extention" to start producing events such as 4697 (Service Installed)
-- Add button to all events, "Don't show any more alerts with this alert" 
+- Add button to all events, "Don't show any more alerts with this information" 
 - Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
 - Add a better sound for the Toast Notification
 - Add icons for the Toast Notification
@@ -61,8 +64,17 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - Reimplement as a Red Team situational awareness tool
 - subscribe to events on a remote computer: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
 - Send toast notications to a remote computer
-- Perhaps look at implementing good basic execution rules? (Example: High Entropy file names)
+- Perhaps look at implementing good basic perodic execution rules? (Example: High Entropy file names, known malicious exe names, known malicious pipe names, or rundll32 without any arguements, etc.)
+- Other periodic checks (pre-fetch files deleted)
+- Vaccine capabilitiy - launch known analysis tool file names, mutex's
 - Perhaps look at what a local sigma instance might look like?
+- Pull down public domain/ip known malicious ip's/domains 
+
+## In next re-write:
+- Make replace all the eventlog arrays with string objects
+- Make better rule logic flow (instead of messy if statements before every toast notification)
+
+
 
 ## Credits
 Icon from: https://icon-icons.com/download/127074/ICO/512/

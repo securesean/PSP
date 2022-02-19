@@ -25,8 +25,10 @@ namespace PSP_Console
             {
                 prefix = "[!] ";
             }
-            Process currentProcess = Process.GetCurrentProcess();
-            String sumString = prefix + DateTime.Now.ToShortDateString() + " PID-" + currentProcess.Id.ToString() + ": " + Message;
+            // Doesn't seem very useful
+            //Process currentProcess = Process.GetCurrentProcess();
+            // " PID-" + currentProcess.Id.ToString() +
+            String sumString = prefix + DateTime.Now.ToLongTimeString() +  ": " + Message;
 
 
             // Log to Console //

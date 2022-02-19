@@ -43,6 +43,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
  - GUI - gpedit.msc: Computer Configuration\Windows Settings\Advanced Audit Policy Configuration\System -> "Audit Security System Extension"
 
 ## Future Feature Ideas:
+- Create persistence so it run on logon
 - Target classic tools:
    - https://blog.menasec.net/2019/03/threat-hunting-26-remote-windows.html 
    - https://jpcertcc.github.io/ToolAnalysisResultSheet/
@@ -71,7 +72,8 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - Pull down public domain/ip known malicious ip's/domains 
 
 ## In next re-write:
-- Make replace all the eventlog arrays with string objects
+- Make gathering admin's a periodic background task (Right now it can be REALLY SLOW)
+- Make real User & Group Objects
 - Make better rule logic flow (instead of messy if statements before every toast notification)
 
 

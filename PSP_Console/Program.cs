@@ -9,7 +9,7 @@ using Windows.Foundation.Collections;
 
 /*
  * Sean Pierce
- * Dec 2021
+ * Started: Dec 2021
  * Personal Security Product
  * I wrote this while I was home sick so I'm sorry for the typo's, bad structure, and dumb logic
  * */

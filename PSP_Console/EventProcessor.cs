@@ -21,28 +21,10 @@ namespace PSP_Console
 
         public EventProcessor()
         {
-            // this will launch a background thread that will keep state information on the admin group membership so that when GP is applied
-            // I don't get a flood of alerts saying that a user is suddenly added to the local admin's group when it was already there to begin with
-            localAdminGroupList = getLocalAdminEnglishList();
+            // TODO: Run this on a background thread periodically 
+            localAdminGroupList =  Helper.GetLocalAdminSIDs();
         }
 
-        private List<string> getLocalAdminEnglishList()
-        {
-            List<string> newLocalAdminGroupList = new List<string>();
-
-            DirectoryEntry localMachine = new DirectoryEntry("WinNT://" + Environment.MachineName);
-            DirectoryEntry admGroup = localMachine.Children.Find("administrators", "group");    // ToDo figure out how to do this via SID for internationalization: S-1-5-32-544
-            object members = admGroup.Invoke("members", null);
-            System.Console.WriteLine("Administrators:");
-            foreach (object groupMember in (IEnumerable)members)
-            {
-                DirectoryEntry member = new DirectoryEntry(groupMember);
-                //lstUsers.Items.Add(member.Name);
-                System.Console.WriteLine("\t" + member.Name);
-                newLocalAdminGroupList.Add(member.Name);
-            }
-            return newLocalAdminGroupList;
-        }
 
         /*
          * Test with :
@@ -631,9 +613,21 @@ namespace PSP_Console
                     {
                         toast.AddText("With a cumstom (Unknown) Group");
                     }
-                    
 
+                    // I AM SO SORRY THIS IS SO SLOPPY. I suspect that everytime Group Policy is enforced, the API's add the
+                    // correct users to the correct groups without checking to see if they are already in there. This means
+                    // that every few hours this will redundantly tell me that the users that are already in the admin group
+                    // are being added to the admin group. So this is a quick fix
+                    // TODO: Create my own list of users & group memeberships
+                    if(TargetSid.EndsWith("-544") && localAdminGroupList.Contains(MemberSid))
+                    {
+                        Helper.WriteToLog("Supressed alert notifying user added to the admin group because they were already a member");
+                    }
+                    else
+                    {
                         toast.Show();
+                    }
+                        
 
                     Helper.WriteToLog("---------------------------------------");
 

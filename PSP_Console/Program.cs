@@ -37,7 +37,7 @@ namespace PSP_Console
                 //    MessageBox.Show("Toast activated. Args: " + toastArgs.Argument);
                 //});
 
-                string eventRecordID = toastArgs.Argument.Substring(15);  // "conversationId="
+                string eventRecordID = toastArgs.Argument.Substring(15);  // Remove "conversationId="
                 System.Console.WriteLine("Openning Event Record " + eventRecordID);
                 eventProcessor.WriteAndOpen(eventRecordID);
             };
@@ -69,7 +69,7 @@ namespace PSP_Console
                 // Cleared Log
                 "EventID=1102 or " +
 
-                // User Group Enumerated
+                // User Group Enumerated - will probably remove this
                 "EventID=4798 or " +
 
                 // User Created

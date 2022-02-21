@@ -12,7 +12,7 @@ namespace PSP_Console
         public string Name;
         public string SID;
         public SIDType SIDType;
-        public string Status;
+        public string Status;   
 
         /* It appears Name and Domain are the only required fields
          * 
@@ -100,6 +100,7 @@ namespace PSP_Console
 
         public bool isInterestingGroup()
         {
+            // TODO: Fill this list out
             // List of 
             // if it's not OK, that's interesting
             if (!Status.Equals("OK"))

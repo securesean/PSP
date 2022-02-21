@@ -8,6 +8,7 @@ using System.DirectoryServices;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 // I just made this to hold all the Event processing code so everything wouldn't be all in one big .cs file
@@ -18,11 +19,24 @@ namespace PSP_Console
         private List<string> localAdminGroupList;
         private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
         private string EventVaule_NotSet = "%%1793";
-
+        Thread RefreshAdminListThread;
         public EventProcessor()
         {
-            // TODO: Run this on a background thread periodically 
-            localAdminGroupList =  Helper.GetLocalAdminSIDs();
+            // Periodically get list of SID's in the admin group
+            RefreshAdminListThread = new Thread(RefreshAdminListDriver);
+            RefreshAdminListThread.Start();
+            
+        }
+
+        private void RefreshAdminListDriver()
+        {
+            while (true)
+            {
+                // The WMI is taking 4 to 8 minutes!
+                localAdminGroupList = Helper.GetLocalAdminSIDs();
+                Thread.Sleep(1000 * 60);
+            }
+            
         }
 
 
@@ -914,23 +928,28 @@ namespace PSP_Console
                         // When alerting for local group enumeration, the machine account should just be ignored
                         if (!SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))  // This might fail if the hostname is longer than 15 chars
                         {
-
-                            // Store in 'Database'
-                            long record_id = (long)eventRecord.EventRecord.RecordId;
-                            if (eventRecord.EventRecord.RecordId != null)
+                            // There seems to be a lot of WMI based group enumeration, I think I would only care if cmd.exe or something did it
+                            if(CallerProcessName != @"C:\Windows\System32\wbem\WmiPrvSE.exe")
                             {
-                                RecordedEvents.Add(record_id, eventRecord);
+                                // Store in 'Database'
+                                long record_id = (long)eventRecord.EventRecord.RecordId;
+                                if (eventRecord.EventRecord.RecordId != null)
+                                {
+                                    RecordedEvents.Add(record_id, eventRecord);
+                                }
+
+                                // Output to File, Console and Pop-up
+                                Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
+
+                                // Toast 
+                                ToastContentBuilder toast = new ToastContentBuilder()
+                                .AddArgument("conversationId", record_id)
+                                .AddText("User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName)
+                                .AddText("Process: " + CallerProcessName);
+
+
+                                toast.Show();
                             }
-
-                            // Output to File, Console and Pop-up
-                            Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
-
-                            // Toast 
-                            ToastContentBuilder toast = new ToastContentBuilder()
-                            .AddArgument("conversationId", record_id)
-                            .AddText("User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName)
-                            .AddText("Process: " + CallerProcessName);
-                            toast.Show();
                         }
                     }
                     Helper.WriteToLog("---------------------------------------");

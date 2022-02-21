@@ -150,7 +150,11 @@ namespace PSP_Console
                             
                             TODO: Create legit User Object
                         */
+
                         //User aUser = new User();
+                        //aGroup.AddMember()
+
+
                         try
                         {
                             string sid = (string)user.GetPropertyValue("SID");

@@ -331,6 +331,7 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='ProcessId']", // PID that did it
                     "Event/EventData/Data[@Name='ProcessName']", // Exe that did it - probably C:\Windows\System32\svchost.exe
                     "Event/EventData/Data[@Name='SubjectUserSid']",
+                    "Event/EventData/Data[@Name='TargetDomainName']",
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -344,8 +345,9 @@ namespace PSP_Console
                     String ProcessId = logEventProps[3].ToString();
                     String ProcessName = logEventProps[4].ToString();
                     String SubjectUserSid = logEventProps[5].ToString();
+                    String TargetDomainName = logEventProps[6].ToString();
 
-                    Helper.WriteToLog("A logon was attempted using explicit credentials. (Usually runas.exe)");
+                    Helper.WriteToLog("A logon was attempted using explicit credentials. (Usually runas.exe or RDP)");
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
@@ -363,18 +365,25 @@ namespace PSP_Console
                         }
 
                         // Output to File, Console
-                        Helper.WriteToLog(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe) as '" + TargetUserName + "'", "OUTPUT");
+                        Helper.WriteToLog(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe or RDP) as '" + TargetDomainName + "\\" + TargetUserName + "'", "OUTPUT");
 
 
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
                         .AddArgument("conversationId", record_id)
-                        .AddText(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe) as '" + TargetUserName + "'");
+                        .AddText(SubjectUserName + " performed a logon using explicit creds as '" + TargetDomainName + "\\" + TargetUserName + "'");
                         if (Helper.isRemoteIP(IpAddress))
                         {
                             toast.AddText("From " + IpAddress);
                         }
                         toast.AddText("From " + ProcessName + " (PID: " + ProcessId + ")");
+                        if (ProcessName.Contains("svchost.exe"))
+                        {
+                            toast.AddText("(svchost.exe usually means you usually just ran runas.exe)");
+                        } else if (ProcessName.Contains("lsass.exe"))
+                        {
+                            toast.AddText("(lsass.exe usually means you just RDP'd)");
+                        }
                         toast.Show();
 
                     }

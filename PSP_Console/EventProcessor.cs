@@ -57,6 +57,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SubjectUserName = logEventProps[0].ToString();
 
                     Helper.WriteToLog("User who Cleared Security Log: " + SubjectUserName);
@@ -89,6 +96,10 @@ namespace PSP_Console
                 catch (System.ArgumentOutOfRangeException)
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
                 }
             }
         }
@@ -162,6 +173,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SubjectUserName = logEventProps[0].ToString();
                     String ServiceName = logEventProps[1].ToString();
                     String ServiceFileName = logEventProps[2].ToString();
@@ -213,6 +231,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         } // end process4697_ServiceInstalled
 
@@ -231,6 +253,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SubjectUserName = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
                     String TargetSid = logEventProps[2].ToString();
@@ -266,6 +295,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -283,6 +316,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SubjectUserName = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
 
@@ -317,6 +357,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -339,6 +383,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SubjectUserName = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
                     String IpAddress = logEventProps[2].ToString();
@@ -395,6 +446,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -417,6 +472,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SubjectUserName = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
                     String TargetSid = logEventProps[2].ToString();
@@ -659,6 +721,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -690,7 +756,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
-
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
@@ -771,6 +843,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -800,6 +876,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SID = logEventProps[0].ToString();
                     String LogonId = logEventProps[1].ToString();
                     String LogonType = logEventProps[2].ToString();
@@ -870,8 +953,12 @@ namespace PSP_Console
                             message += "Attempted Username: " + TargetDomainName + "\\" + TargetUserName;
                             if (Helper.isRemoteIP(IP))
                             {
-                                message += "\nAttacker Hostname: " + SubjectDomainName + "\\" + WorkstationName;
                                 message += "\nIP: " + IP;
+                            }
+                            if (SubjectDomainName != "" && WorkstationName != "")
+                            {
+
+                                message += "\nAttacker Hostname: " + SubjectDomainName + "\\" + WorkstationName;
                             }
 
                             // This is too many lines that toast will display (Max: 4)
@@ -899,6 +986,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         } // end process4625_LogonFailed
 
@@ -923,7 +1014,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
-
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
@@ -968,6 +1065,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         } // process4798_LocalGroupEnum
 
@@ -985,7 +1086,14 @@ namespace PSP_Console
             {
                 try
                 {
-                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector); 
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     string SubjectUserName = logEventProps[0].ToString();
                     string TargetUserName = logEventProps[1].ToString();
 
@@ -1016,6 +1124,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         } // process4798_LocalGroupEnum
 
@@ -1032,7 +1144,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
-
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
@@ -1060,6 +1178,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -1078,7 +1200,13 @@ namespace PSP_Console
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
                     String LogonProcessName = logEventProps[1].ToString();
-
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
@@ -1116,6 +1244,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -1132,7 +1264,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
-
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
@@ -1160,6 +1298,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
                 }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
             }
         }
 
@@ -1176,6 +1318,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
 
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
@@ -1203,6 +1352,10 @@ namespace PSP_Console
                 catch (System.ArgumentOutOfRangeException)
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
                 }
             }
         }
@@ -1236,6 +1389,13 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for(int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
                     String SID = logEventProps[0].ToString();
                     String LogonId = logEventProps[1].ToString();
                     String LogonType = logEventProps[2].ToString();
@@ -1344,6 +1504,10 @@ namespace PSP_Console
                 catch (System.ArgumentOutOfRangeException)
                 {
                     Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                }
+                catch (System.NullReferenceException)
+                {
+                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
                 }
             }
         }

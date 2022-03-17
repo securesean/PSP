@@ -1199,7 +1199,6 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
-                    String LogonProcessName = logEventProps[1].ToString();
                     for (int i = 0; i < logEventProps.Count; i++)
                     {
                         if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
@@ -1207,6 +1206,8 @@ namespace PSP_Console
                             logEventProps[i] = "";
                         }
                     }
+                    String SubjectUserName = logEventProps[0].ToString();
+                    String LogonProcessName = logEventProps[1].ToString();
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
@@ -1231,12 +1232,15 @@ namespace PSP_Console
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
                         .AddArgument("conversationId", record_id)
-                        .AddText("Lsass Logged on a Process: " + LogonProcessName);
+                        .AddText("Lsass Logged on a Process: " + LogonProcessName)
+                        .AddText("Done by: " + SubjectUserName);
 
-                        if(LogonProcessName == "Winlogon")
+                        // TODO: Translate SID's to human readble
+                        if(LogonProcessName.ToUpper() == "WINLOGON")
                         {
                             toast.AddText("This might be RDP Traffic");
-                        } else if (LogonProcessName == "HTTP.SYS")
+                            toast.AddText("");
+                        } else if (LogonProcessName.ToUpper() == "HTTP.SYS")
                         {
                             toast.AddText("This might be WinRM being enabled");
                         }

@@ -1440,6 +1440,7 @@ namespace PSP_Console
                         // Further testing needed but I'll probably want to exclude
                         // 4	Batch (i.e. scheduled task)
                         // 2	Interactive (logon at keyboard and screen of system)
+                        // 10   
                         {
                             // Output to File, Console and Pop-up
                             Helper.WriteToLog("Logon Success: ", "OUTPUT");
@@ -1467,19 +1468,24 @@ namespace PSP_Console
                             // https://docs.microsoft.com/en-us/answers/questions/46899/computer-account-logon.html
                             if ((logonType == 3) && (AuthenticationPackageName == "Kerberos") && (TargetUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$")))  // This might fail if the hostname is longer than 15 chars
                             {
-                                ToastContentBuilder toast = new ToastContentBuilder().AddArgument("conversationId", record_id)
-                                .AddText("Logon Success Type: " + LogonType);
-                                toast.AddText("Kerberos is being weird again ");
-                                toast.Show();
-                                Helper.WriteToLog("Kerberos is being weird again ", "OUTPUT");
+                                Helper.WriteToLog("(Kerberos is being weird again)", "OUTPUT");
                             } else 
                             {
                                 // Toast 
                                 string message = "";
                                 // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                                 ToastContentBuilder toast = new ToastContentBuilder()
-                                .AddArgument("conversationId", record_id)
-                                .AddText("Logon Success Type: " + LogonType);
+                                .AddArgument("conversationId", record_id);
+
+
+                                if(logonType == 10)
+                                {
+                                    toast.AddText("RDP Logon Success (Logon Type 10) ");
+                                } else
+                                {
+                                    toast.AddText("Logon Success Type: " + LogonType);
+                                }
+                                
 
                                 message += "User: " + TargetDomainName + "\\" + TargetUserName;
                                 if (Helper.isRemoteIP(IP))

@@ -1456,13 +1456,14 @@ namespace PSP_Console
                             // local network logon from "kerberos" and with no subject information
                             // and to the machine account. This person appears to be saying the same thing:
                             // https://docs.microsoft.com/en-us/answers/questions/46899/computer-account-logon.html
-                            if (
-                                (LogonType != "3")
-                                &&
-                                (AuthenticationPackageName != "Kerberos") 
-                                &&
-                                (!TargetUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))  // This might fail if the hostname is longer than 15 chars
-                                )
+                            if ((logonType == 3) && (AuthenticationPackageName == "Kerberos") && (TargetUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$")))  // This might fail if the hostname is longer than 15 chars
+                            {
+                                ToastContentBuilder toast = new ToastContentBuilder().AddArgument("conversationId", record_id)
+                                .AddText("Logon Success Type: " + LogonType);
+                                toast.AddText("Kerberos is being weird again ");
+                                toast.Show();
+                                Helper.WriteToLog("Kerberos is being weird again ", "OUTPUT");
+                            } else 
                             {
                                 // Toast 
                                 string message = "";
@@ -1474,7 +1475,10 @@ namespace PSP_Console
                                 message += "User: " + TargetDomainName + "\\" + TargetUserName;
                                 if (Helper.isRemoteIP(IP))
                                 {
-                                    message += "\nAttacker Hostname: " + WorkstationName;
+                                    if (WorkstationName.Trim() == "")
+                                    {
+                                        message += "\nAttacker Hostname: " + WorkstationName;
+                                    }
                                     message += "\nIP: " + IP;
                                 }
 

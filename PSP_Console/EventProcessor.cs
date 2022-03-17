@@ -1232,7 +1232,16 @@ namespace PSP_Console
                         ToastContentBuilder toast = new ToastContentBuilder()
                         .AddArgument("conversationId", record_id)
                         .AddText("Lsass Logged on a Process: " + LogonProcessName)
-                        .AddText("The source probably needs to be added to the known-good list");
+
+                        if(LogonProcessName == "Winlogon")
+                        {
+                            toast.AddText("This might be RDP Traffic");
+                        }
+                        else
+                        {
+                            toast.AddText("The source probably needs to be added to the known-good list");
+                        }
+                        
                         toast.Show();
                     }
                     

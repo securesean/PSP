@@ -44,12 +44,14 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 
 ## Future Feature Ideas:
 - Better logging on the reason for a crash
+- Automatic port scanning of would-be attacker machines who have attempted remote logons
 - Alert on malicious looking WinRM commands under Microsoft-Windows-WinRM/Operational (Event ID 91).
 - Create persistence so it run on logon
 - Target classic tools:
    - https://blog.menasec.net/2019/03/threat-hunting-26-remote-windows.html 
    - https://jpcertcc.github.io/ToolAnalysisResultSheet/
 - Build automated self tests
+- Make a 'Lock down feature' that will stop WinRM,LanMan,RDP,SSH and start listening on those ports
 - Add an evaulation phase/mode/startup 
    - list all users/groups in local admin groups
    - resursively lookup domain groups and users in admin groups

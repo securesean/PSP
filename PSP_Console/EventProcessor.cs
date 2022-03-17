@@ -869,6 +869,7 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='SubjectDomainName']",  // WORKGROUP by defaultd
                     "Event/EventData/Data[@Name='AuthenticationPackageName']",  // auth
                     "Event/EventData/Data[@Name='LmPackageName']",  // auth package name
+                    "Event/EventData/Data[@Name='LogonGuid']",  // It seems to be "{00000000-0000-0000-0000-000000000000}" for (malicious) WinRM connections
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -897,6 +898,7 @@ namespace PSP_Console
                     String SubjectDomainName = logEventProps[11].ToString();
                     String AuthenticationPackageName = logEventProps[12].ToString();
                     String LmPackageName = logEventProps[13].ToString();
+                    String LogonGuid = logEventProps[14].ToString();
 
                     String Description = eventRecord.EventRecord.FormatDescription();
                     String DescriptionXML = eventRecord.EventRecord.ToXml();
@@ -957,7 +959,6 @@ namespace PSP_Console
                             }
                             if (SubjectDomainName != "" && WorkstationName != "")
                             {
-
                                 message += "\nAttacker Hostname: " + SubjectDomainName + "\\" + WorkstationName;
                             }
 
@@ -1398,6 +1399,7 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='SubjectDomainName']",  // WORKGROUP by default
                     "Event/EventData/Data[@Name='AuthenticationPackageName']",  // auth
                     "Event/EventData/Data[@Name='LmPackageName']",  // auth package names
+                    "Event/EventData/Data[@Name='LogonGuid']",  // Seems to be "{00000000-0000-0000-0000-000000000000}" for (Malicious) WinRM connections
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -1426,6 +1428,7 @@ namespace PSP_Console
                     String SubjectDomainName = logEventProps[11].ToString();
                     String AuthenticationPackageName = logEventProps[12].ToString();
                     String LmPackageName = logEventProps[13].ToString();
+                    String LogonGuid = logEventProps[14].ToString();
 
                     Helper.WriteToLog("SID: " + SID);
                     Helper.WriteToLog("Logon Id: " + LogonId);
@@ -1484,14 +1487,19 @@ namespace PSP_Console
                                 ToastContentBuilder toast = new ToastContentBuilder()
                                 .AddArgument("conversationId", record_id);
 
-
+                                // Title Message
                                 if(logonType == 10)
                                 {
                                     toast.AddText("RDP Logon Success (Logon Type 10) ");
-                                } else
+                                } else if((logonType == 3) && (LogonGuid.Contains("00000000-0000-0000-0000-000000000000")))
+                                {
+                                    toast.AddText("WinRM Logon Success (Type 3, Null GUID)");
+                                }
+                                    else
                                 {
                                     toast.AddText("Logon Success Type: " + LogonType);
                                 }
+
                                 
 
                                 message += "User: " + TargetDomainName + "\\" + TargetUserName;

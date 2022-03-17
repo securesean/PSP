@@ -43,6 +43,8 @@ As normal computer user, I've always been a little miffed that I don't have a ba
  - GUI - gpedit.msc: Computer Configuration\Windows Settings\Advanced Audit Policy Configuration\System -> "Audit Security System Extension"
 
 ## Future Feature Ideas:
+- Better logging on the reason for a crash
+- Alert on malicious looking WinRM commands under Microsoft-Windows-WinRM/Operational (Event ID 91).
 - Create persistence so it run on logon
 - Target classic tools:
    - https://blog.menasec.net/2019/03/threat-hunting-26-remote-windows.html 

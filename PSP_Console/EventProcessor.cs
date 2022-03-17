@@ -1231,11 +1231,14 @@ namespace PSP_Console
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
                         .AddArgument("conversationId", record_id)
-                        .AddText("Lsass Logged on a Process: " + LogonProcessName)
+                        .AddText("Lsass Logged on a Process: " + LogonProcessName);
 
                         if(LogonProcessName == "Winlogon")
                         {
                             toast.AddText("This might be RDP Traffic");
+                        } else if (LogonProcessName == "HTTP.SYS")
+                        {
+                            toast.AddText("This might be WinRM being enabled");
                         }
                         else
                         {

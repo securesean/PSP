@@ -1240,7 +1240,6 @@ namespace PSP_Console
                         if(LogonProcessName.ToUpper() == "WINLOGON")
                         {
                             toast.AddText("This might be RDP Traffic");
-                            toast.AddText("");
                         } else if (LogonProcessName.ToUpper() == "HTTP.SYS")
                         {
                             toast.AddText("This might be WinRM being enabled");

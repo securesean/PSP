@@ -15,6 +15,7 @@ namespace PSP_Console
 
         public static string path = System.Environment.GetEnvironmentVariable("PROGRAMDATA") + "\\PSP_Logs";
         public static string filepath = path + "\\PSP_Log_" + DateTime.Now.Date.ToShortDateString().Replace('/', '_') + ".txt";
+        private static readonly object _syncObject = new object();
 
         public static void WriteToLog(string Message, string level = "INFO")
         {
@@ -63,7 +64,10 @@ namespace PSP_Console
             {
                 using (StreamWriter sw = File.AppendText(filepath))
                 {
-                    sw.WriteLine(sumString);
+                    lock (_syncObject)
+                    {
+                        sw.WriteLine(sumString);
+                    }
                 }
             }
 

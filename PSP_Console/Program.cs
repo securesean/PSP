@@ -19,8 +19,30 @@ namespace PSP_Console
     class Program
     {
         static EventProcessor eventProcessor;
+        private static bool testMode = false;
+        private static List<int> supportedEventIDList = new List<int>();
+
         static void Main(string[] args)
         {
+
+            // Some argument processing
+            foreach (string arg in args)
+            {
+                if(arg.ToLower() == "-h" || arg.ToLower() == "--help")
+                {
+                    printBanner();
+                    return;
+                }
+                if(arg.ToLower() == "-t" || arg.ToLower() == "--test")
+                {
+                    // launch a thread that will wait for the subscriptions, then execute the tests
+                    testMode = true;
+                }
+            }
+
+            eventProcessor = new EventProcessor();
+            eventProcessor.TestMode = testMode;
+
             // Listen to notification activation
             ToastNotificationManagerCompat.OnActivated += toastArgs =>
             {
@@ -43,11 +65,16 @@ namespace PSP_Console
             };
 
             Helper.WriteToLog("Initiallizing EventProcessor. Starting Security Event Subscription");
-            eventProcessor = new EventProcessor();
             subscribe();
             
             Helper.WriteToLog("Press Any key to exit");
             Console.ReadKey();
+        }
+
+        private static void printBanner()
+        {
+            Console.WriteLine("Only support -t/--test parameter right now");
+            Helper.WriteToLog("Only support -t/--test parameter right now");
         }
 
         public static void subscribe()
@@ -89,6 +116,25 @@ namespace PSP_Console
                 "EventID=4610 or EventID=4611 or EventID=4614 or EventID=4622" +    // Lsass Stuff
                 
                 "]]");
+
+                supportedEventIDList.Add(4624);
+                supportedEventIDList.Add(4625);
+                supportedEventIDList.Add(4648);
+                supportedEventIDList.Add(1102);
+                supportedEventIDList.Add(4798);
+                supportedEventIDList.Add(4720);
+                supportedEventIDList.Add(4722);
+                supportedEventIDList.Add(4732);
+                supportedEventIDList.Add(4726);
+                supportedEventIDList.Add(4724);
+                supportedEventIDList.Add(4697);
+                supportedEventIDList.Add(4610);
+                supportedEventIDList.Add(4611);
+                supportedEventIDList.Add(4614);
+                supportedEventIDList.Add(4622);
+
+
+                // Another example:
                 //EventLogQuery SecurityAuditingQuery = new EventLogQuery("Microsoft-Windows-Security-Auditing", PathType.LogName, "*[System[EventID=4697 or EventID=4634]]");
 
                 SecurityWatcher = new EventLogWatcher(securityQuery);
@@ -110,6 +156,47 @@ namespace PSP_Console
                 {
                     //Helper.WriteToLog("Waiting for Events...");
                     // Wait for events to occur. 
+                    
+                    if (testMode)
+                    {
+                        // Natively Supported Events
+                        eventProcessor.trigger_process4624_LogonSuccess();
+                        eventProcessor.trigger_process4625_LogonFailed();
+                        eventProcessor.trigger_process1102_SecuritytLogCleared();
+                        eventProcessor.trigger_process4798_LocalGroupEnum();
+                        eventProcessor.trigger_process4726_UserDeleted();
+                        eventProcessor.trigger_process4720_UserCreated();
+                        eventProcessor.trigger_process4722_UserEnabled();
+                        eventProcessor.trigger_process4732_UserAddedToGroup();
+                        eventProcessor.trigger_process4648_UserLogonWithCreds();
+                        eventProcessor.trigger_process4724_PasswordReset();
+
+                        // Events supported by "Security System Extension"
+                        eventProcessor.trigger_process4697_ServiceInstalled();
+                        eventProcessor.trigger_process4622_LsassLoadedPackage();
+                        eventProcessor.trigger_process4614_NotifcationPackageLoaded();
+                        eventProcessor.trigger_process4611_LsassLogon();
+                        eventProcessor.trigger_process4610_LsassLoadedAuthPackage();
+
+                        // Wait for events to roll in
+                        System.Threading.Thread.Sleep(10000);
+
+                        foreach (int eventID in supportedEventIDList)
+                        {
+                            if (eventProcessor.TestTriggeredEventIDs.Contains(eventID))
+                            {
+                                Helper.WriteToLog("Event Supported " + eventID.ToString(), "OUTPUT");
+                            } else
+                            {
+                                Helper.WriteToLog("Event NOT Supported " + eventID.ToString(), "ERROR");
+                            }
+                        }
+
+                        Helper.WriteToLog("Press Any key to exit");
+                        Console.ReadKey();
+                        return;
+                    }
+
                     System.Threading.Thread.Sleep(10000);
                 }
             }
@@ -177,7 +264,7 @@ namespace PSP_Console
                     eventProcessor.process4720_UserCreated(eventRecord);
                     break;
                 case 4722:
-                    eventProcessor.process4726_UserEnabled(eventRecord);
+                    eventProcessor.process4722_UserEnabled(eventRecord);
                     break; 
                 case 4732:
                     eventProcessor.process4732_UserAddedToGroup(eventRecord);
@@ -185,7 +272,7 @@ namespace PSP_Console
                 case 4648:
                     eventProcessor.process4648_UserLogonWithCreds(eventRecord);
                     break; 
-                case 4723:
+                case 4724:
                     eventProcessor.process4724_PasswordReset(eventRecord);
                     break; 
 

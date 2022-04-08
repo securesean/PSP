@@ -39,7 +39,12 @@ namespace PSP_Console
             if (level == "ERROR")
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-            } else if (level == "OUTPUT")
+            }
+            else if (level == "TEST")
+            {
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
+            }
+            else if (level == "OUTPUT")
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
             }
@@ -68,6 +73,7 @@ namespace PSP_Console
                     lock (_syncObject)
                     {
                         sw.WriteLine(sumString);
+                        sw.Flush();
                     }
                 }
             }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
+using System.DirectoryServices;
 using System.IO;
 using System.Threading;
 
@@ -16,11 +17,16 @@ namespace PSP_Console
         private string EventVaule_NotSet = "%%1793";
         Thread RefreshAdminListThread;
 
+        public bool TestMode { get; internal set; }
+        public List<int> TestTriggeredEventIDs { get; internal set; }
+
         public EventProcessor()
         {
             // Periodically get list of SID's in the admin group
             RefreshAdminListThread = new Thread(RefreshAdminListDriver);
             RefreshAdminListThread.Start();
+            TestMode = false;
+            TestTriggeredEventIDs = new List<int>();
 
         }
 
@@ -52,6 +58,9 @@ namespace PSP_Console
          * */
         internal void process1102_SecuritytLogCleared(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(1102);
+
             String[] xPathArray = new[]
                 {
                     "Event/UserData/LogFileCleared/SubjectUserName", // For when it's like <SubjectUserName>Admin</SubjectUserName>
@@ -166,11 +175,265 @@ namespace PSP_Console
             }
         }
 
-        // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
+        internal void trigger_process1102_SecuritytLogCleared()
+        {
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "cl Security";
+            p.StartInfo.FileName = "wevtutil.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Cleared Security Log: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+        }
+
+        internal void trigger_process4726_UserDeleted()
+        {
+            trigger_process4720_UserCreated();
+        }
+
+        internal void trigger_process4722_UserEnabled()
+        {
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "user testUser /add";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+
+            // Enable
+            Process p2 = new Process();
+            p2.StartInfo.UseShellExecute = false;
+            p2.StartInfo.RedirectStandardOutput = true;
+            p2.StartInfo.Arguments = "user testUser /active:yes";
+            p2.StartInfo.FileName = "net.exe";
+            p2.Start();
+            string output2 = p2.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Activate User: " + output2.Trim(), "TEST");
+            //p2.WaitForExit();
+
+            // Clean up
+            Process p3 = new Process();
+            p3.StartInfo.UseShellExecute = false;
+            p3.StartInfo.RedirectStandardOutput = true;
+            p3.StartInfo.Arguments = "user testUser /del";
+            p3.StartInfo.FileName = "net.exe";
+            p3.Start();
+            string output3 = p3.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
+            //p2.WaitForExit();
+        }
+
+        internal void trigger_process4648_UserLogonWithCreds()
+        {
+            
+        }
+
+        internal void trigger_process4724_PasswordReset()
+        {
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "user testUser /add";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+
+            // Enable
+            Process p2 = new Process();
+            p2.StartInfo.UseShellExecute = false;
+            p2.StartInfo.RedirectStandardOutput = true;
+            p2.StartInfo.Arguments = "user testUser Password123Password123";
+            p2.StartInfo.FileName = "net.exe";
+            p2.Start();
+            string output2 = p2.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("User Password was set: " + output2.Trim(), "TEST");
+            //p2.WaitForExit();
+
+            // Clean up
+            Process p3 = new Process();
+            p3.StartInfo.UseShellExecute = false;
+            p3.StartInfo.RedirectStandardOutput = true;
+            p3.StartInfo.Arguments = "user testUser /del";
+            p3.StartInfo.FileName = "net.exe";
+            p3.Start();
+            string output3 = p3.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
+            //p2.WaitForExit();
+        }
+
+        internal void trigger_process4697_ServiceInstalled()
+        {
+            // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "create aService start= delayed-auto binpath= C:\\a.exe";
+            p.StartInfo.FileName = "sc.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Installing Service: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+
+            // Clean up
+            Process p2 = new Process();
+            p2.StartInfo.UseShellExecute = false;
+            p2.StartInfo.RedirectStandardOutput = true;
+            p2.StartInfo.Arguments = "delete aService";
+            p2.StartInfo.FileName = "sc.exe";
+            p2.Start();
+            string output2 = p2.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Installing Service: " + output2.Trim(), "TEST");
+            //p2.WaitForExit();
+        }
+
+        internal void trigger_process4614_NotifcationPackageLoaded()
+        {
+            
+        }
+
+        internal void trigger_process4610_LsassLoadedAuthPackage()
+        {
+            
+        }
+
+        internal void trigger_process4611_LsassLogon()
+        {
+            
+        }
+
+        internal void trigger_process4622_LsassLoadedPackage()
+        {
+            
+        }
+
+        // ToDo: Clean all this up - make a CreateUser()
+        internal void trigger_process4732_UserAddedToGroup()
+        {
+            // create user
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "user testUser /add";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+            // create group
+            p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "localgroup tempgroup5 /add";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+            // add user to group
+            p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "localgroup tempgroup5 testUser /add";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+
+            // delete group
+            p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "localgroup tempgroup5 /del";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+
+            // Clean up
+            Process p2 = new Process();
+            p2.StartInfo.UseShellExecute = false;
+            p2.StartInfo.RedirectStandardOutput = true;
+            p2.StartInfo.Arguments = "user testUser /del";
+            p2.StartInfo.FileName = "net.exe";
+            p2.Start();
+            string output2 = p2.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
+        }
+
+        internal void trigger_process4720_UserCreated()
+        {
+            // create user
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "user testUser /add";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+
+
+            // Clean up
+            Process p2 = new Process();
+            p2.StartInfo.UseShellExecute = false;
+            p2.StartInfo.RedirectStandardOutput = true;
+            p2.StartInfo.Arguments = "user testUser /del";
+            p2.StartInfo.FileName = "net.exe";
+            p2.Start();
+            string output2 = p2.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
+            //p2.WaitForExit();
+        }
+
+        internal void trigger_process4798_LocalGroupEnum()
+        {
+            // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
+            Process p = new Process();
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.Arguments = "localgroup Administrators";
+            p.StartInfo.FileName = "net.exe";
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd();
+            Helper.WriteToLog("Enumerating localgroup: " + output.Trim(), "TEST");
+            //p.WaitForExit();
+        }
+
+        internal void trigger_process4625_LogonFailed()
+        {
+            
+        }
+
+        internal void trigger_process4624_LogonSuccess()
+        {
+            
+        }
+
+        
         // ToDo: change to'Installed Service: <name>'
         // And list the executeable that did the installation 
         internal void process4697_ServiceInstalled(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4697);
+
             String[] xPathArray = new[]
                 {
                     // (The XPath expression evaluates to null if no Data element exists with the specified name.)
@@ -253,9 +516,12 @@ namespace PSP_Console
             }
         } // end process4697_ServiceInstalled
 
-        // net user Administrator /active:yes; net user Administrator /active:no
-        internal void process4726_UserEnabled(EventRecordWrittenEventArgs eventRecord)
+        
+        internal void process4722_UserEnabled(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4726);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']",
@@ -324,6 +590,9 @@ namespace PSP_Console
         // Test with> net user temp /add ; net user temp Password12345; net user temp /delete
         internal void process4724_PasswordReset(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4724);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // the user who done it
@@ -390,6 +659,9 @@ namespace PSP_Console
         //  runas /user:temp cmd
         internal void process4648_UserLogonWithCreds(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4648);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // the user who done it
@@ -487,6 +759,9 @@ namespace PSP_Console
         // cmd> net localgroup "Hyper-V Administrators" /delete temp;   net localgroup "Hyper-V Administrators" /add temp
         internal void process4732_UserAddedToGroup(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4732);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']",
@@ -524,8 +799,17 @@ namespace PSP_Console
 
                     string sid = MemberSid;
                     string localGroup = TargetUserName;
-                    string translatedUserName = new System.Security.Principal.SecurityIdentifier(MemberSid).Translate(typeof(System.Security.Principal.NTAccount)).ToString();
-
+                    string translatedUserName = "";
+                    try
+                    {
+                        translatedUserName = new System.Security.Principal.SecurityIdentifier(MemberSid).Translate(typeof(System.Security.Principal.NTAccount)).ToString();
+                    }
+                    catch (System.Security.Principal.IdentityNotMappedException ex)
+                    {
+                        Helper.WriteToLog("Failed to lookup user identity: " + MemberSid, "ERROR");
+                        translatedUserName = MemberSid;
+                    }
+                    
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog(SubjectUserName + " added a user (" + translatedUserName + ") to the local group: '" + TargetUserName + "'", "OUTPUT");
 
@@ -768,6 +1052,9 @@ namespace PSP_Console
          * */
         internal void process4720_UserCreated(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4720);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']",
@@ -888,6 +1175,9 @@ namespace PSP_Console
 
         internal void process4625_LogonFailed(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4625);
+
             String[] xPathArray = new[]
                 {
                     // (The XPath expression evaluates to null if no Data element exists with the specified name.)
@@ -1038,10 +1328,12 @@ namespace PSP_Console
 
 
         // I found this happend when I deleted a user. 
-        // TODO: Figure out what exactly triggers 4798 LocalGroupEnum
         // Test with: net user temp /add ; net user temp /delete
         internal void process4798_LocalGroupEnum(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4798);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']",
@@ -1117,10 +1409,13 @@ namespace PSP_Console
             }
         } // process4798_LocalGroupEnum
 
-        // Test with: net user temp /add ; net user temp /delete
+        
         // TODO: Figure out if I can do this via RPC and do it remotely
         internal void process4726_UserDeleted(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4726);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
@@ -1183,6 +1478,9 @@ namespace PSP_Console
         // "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
         internal void process4610_LsassLoadedAuthPackage(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4610);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
@@ -1241,6 +1539,9 @@ namespace PSP_Console
         // 4611 is logged at startup and occasionally afterwards for each logon process on the system. Possible to make a list of known valid ones
         internal void process4611_LsassLogon(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4611);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
@@ -1327,6 +1628,9 @@ namespace PSP_Console
         // DLLs that Windows calls into whenenever a user changes his/her password. Malicious ones are Rare but deadly
         internal void process4614_NotifcationPackageLoaded(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4614);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
@@ -1385,6 +1689,9 @@ namespace PSP_Console
         // "An Auth Providers or Support Package was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
         internal void process4622_LsassLoadedPackage(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4622);
+
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
@@ -1442,10 +1749,12 @@ namespace PSP_Console
         }
 
 
-
         // Test with: runas /user:user cmd
         internal void process4624_LogonSuccess(EventRecordWrittenEventArgs eventRecord)
         {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4624);
+
             String[] xPathArray = new[]
                 {
                     // (The XPath expression evaluates to null if no Data element exists with the specified name.)

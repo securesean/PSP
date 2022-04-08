@@ -72,7 +72,7 @@ namespace PSP_Console
                     Helper.WriteToLog("User who Cleared Security Log: " + SubjectUserName, "OUTPUT");
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -193,7 +193,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -273,7 +273,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -341,7 +341,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -422,7 +422,7 @@ namespace PSP_Console
                     {
 
                         // Store in 'Database'
-                        long record_id = (long)eventRecord.EventRecord.RecordId;
+                        long record_id = eventRecord.EventRecord.RecordId ?? -1;
                         if (eventRecord.EventRecord.RecordId != null)
                         {
                             RecordedEvents.Add(record_id, eventRecord);
@@ -506,7 +506,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -789,7 +789,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -958,7 +958,7 @@ namespace PSP_Console
                             Helper.WriteToLog("Auth Package: " + LmPackageName, "OUTPUT");
 
                             // Store in 'Database'
-                            long record_id = (long)eventRecord.EventRecord.RecordId;
+                            long record_id = eventRecord.EventRecord.RecordId ?? -1;
                             if (eventRecord.EventRecord.RecordId != null)
                             {
                                 RecordedEvents.Add(record_id, eventRecord);
@@ -1069,7 +1069,7 @@ namespace PSP_Console
                             if (CallerProcessName != @"C:\Windows\System32\wbem\WmiPrvSE.exe")
                             {
                                 // Store in 'Database'
-                                long record_id = (long)eventRecord.EventRecord.RecordId;
+                                long record_id = eventRecord.EventRecord.RecordId ?? -1;
                                 if (eventRecord.EventRecord.RecordId != null)
                                 {
                                     RecordedEvents.Add(record_id, eventRecord);
@@ -1136,7 +1136,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -1194,7 +1194,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -1262,7 +1262,7 @@ namespace PSP_Console
                         )
                     {
                         // Store in 'Database'
-                        long record_id = (long)eventRecord.EventRecord.RecordId;
+                        long record_id = eventRecord.EventRecord.RecordId ?? -1;
                         if (eventRecord.EventRecord.RecordId != null)
                         {
                             RecordedEvents.Add(record_id, eventRecord);
@@ -1338,7 +1338,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -1397,7 +1397,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
                     // Store in 'Database'
-                    long record_id = (long)eventRecord.EventRecord.RecordId;
+                    long record_id = eventRecord.EventRecord.RecordId ?? -1;
                     if (eventRecord.EventRecord.RecordId != null)
                     {
                         RecordedEvents.Add(record_id, eventRecord);
@@ -1514,7 +1514,7 @@ namespace PSP_Console
                             Helper.WriteToLog("Auth Package: " + LmPackageName, "OUTPUT");
 
                             // Store in 'Database'
-                            long record_id = (long)eventRecord.EventRecord.RecordId;
+                            long record_id = eventRecord.EventRecord.RecordId ?? -1;
                             if (eventRecord.EventRecord.RecordId != null)
                             {
                                 RecordedEvents.Add(record_id, eventRecord);

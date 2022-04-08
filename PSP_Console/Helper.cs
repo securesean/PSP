@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.DirectoryServices.AccountManagement;
 using System.IO;
 using System.Management;
 
@@ -84,7 +85,56 @@ namespace PSP_Console
             return instances;
         }
 
+        internal static List<string> GetLocalRDPSIDs()
+        {
+            List<string> SidsFromLocalRDPGroup = new List<string>();
+            try
+            {
+                PrincipalContext ctx = new PrincipalContext(ContextType.Machine);
+                GroupPrincipal rdpGroup = GroupPrincipal.FindByIdentity(ctx, IdentityType.Sid, "S-1-5-32-555");
+
+                var adminMembers = rdpGroup.GetMembers(true);
+
+                foreach (Principal principal in adminMembers)
+                {
+                    SidsFromLocalRDPGroup.Add(principal.Sid.ToString());
+                }
+
+                adminMembers.Dispose();
+                ctx.Dispose();
+            }
+            catch (Exception ex)
+            {
+                WriteToLog("\tFailed to get admin group: " + ex.Message);
+            }
+            return SidsFromLocalRDPGroup;
+        }
+
         internal static List<string> GetLocalAdminSIDs()
+        {
+            List<string> SidsFromLocalAdminGroup = new List<string>();
+            try
+            {
+                PrincipalContext ctx = new PrincipalContext(ContextType.Machine);
+                GroupPrincipal adminGroup = GroupPrincipal.FindByIdentity(ctx, IdentityType.Sid, "S-1-5-32-544");
+
+                var adminMembers = adminGroup.GetMembers(true);
+
+                foreach (Principal principal in adminMembers)
+                {
+                    SidsFromLocalAdminGroup.Add(principal.Sid.ToString());
+                }
+
+                adminMembers.Dispose();
+                ctx.Dispose();
+            }
+            catch (Exception ex)
+            {
+                WriteToLog("\tFailed to get admin group: " + ex.Message);
+            }
+            return SidsFromLocalAdminGroup;
+        }
+        internal static List<string> GetLocalAdminSIDs_slow_in_enterprises()
         {
             List<string> SidsFromLocalAdminGroup = new List<string>();
             ManagementObjectCollection instances = CheckWmiQuery(@"\root\cimv2", "SELECT * FROM Win32_Group WHERE SID = 'S-1-5-32-544'");

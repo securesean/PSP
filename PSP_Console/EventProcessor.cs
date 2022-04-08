@@ -1,15 +1,10 @@
 ﻿using Microsoft.Toolkit.Uwp.Notifications;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
-using System.DirectoryServices;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 // I just made this to hold all the Event processing code so everything wouldn't be all in one big .cs file
 namespace PSP_Console
@@ -25,7 +20,7 @@ namespace PSP_Console
             // Periodically get list of SID's in the admin group
             RefreshAdminListThread = new Thread(RefreshAdminListDriver);
             RefreshAdminListThread.Start();
-            
+
         }
 
         private void RefreshAdminListDriver()
@@ -36,7 +31,7 @@ namespace PSP_Console
                 localAdminGroupList = Helper.GetLocalAdminSIDs();
                 Thread.Sleep(1000 * 60);
             }
-            
+
         }
 
 
@@ -71,7 +66,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                   
+
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who Cleared Security Log: " + SubjectUserName, "OUTPUT");
@@ -82,7 +77,7 @@ namespace PSP_Console
                     {
                         RecordedEvents.Add(record_id, eventRecord);
                     }
-                    
+
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
@@ -90,7 +85,7 @@ namespace PSP_Console
                     toast.AddArgument("conversationId", record_id);
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -101,6 +96,10 @@ namespace PSP_Console
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
                 }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
+                }
             }
         }
 
@@ -109,9 +108,10 @@ namespace PSP_Console
             long eventRecord = 0;
             if (long.TryParse(eventRecordString, out eventRecord))
             {
-                
+
                 WriteAndOpen(eventRecord);
-            }else
+            }
+            else
             {
                 Helper.WriteToLog("Unable to parse Record ID: " + eventRecordString, "ERROR");
             }
@@ -127,7 +127,7 @@ namespace PSP_Console
                 string path = Helper.path + "\\" + eventRecord.ToString() + ".xml";
                 using (StreamWriter sw = File.CreateText(path))
                 {
-                     EventRecordWrittenEventArgs eventRecordObj;
+                    EventRecordWrittenEventArgs eventRecordObj;
                     RecordedEvents.TryGetValue(eventRecord, out eventRecordObj);
 
                     sw.WriteLine(eventRecordObj.EventRecord.ToXml());
@@ -149,7 +149,8 @@ namespace PSP_Console
                     return true;
                 }
 
-            } else
+            }
+            else
             {
                 return false;
             }
@@ -224,7 +225,7 @@ namespace PSP_Console
 
 
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -234,6 +235,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         } // end process4697_ServiceInstalled
@@ -285,10 +290,10 @@ namespace PSP_Console
                     {
                         toast.AddText(TargetUserName + " is the local RID 500 Admin account! ");
                     }
-                        
+
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -298,6 +303,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -345,12 +354,12 @@ namespace PSP_Console
                     ToastContentBuilder toast = new ToastContentBuilder()
                     .AddArgument("conversationId", record_id)
                     .AddText(SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'");
-                    
+
                     toast.Show();
 
 
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -360,6 +369,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -431,7 +444,8 @@ namespace PSP_Console
                         if (ProcessName.Contains("svchost.exe"))
                         {
                             toast.AddText("(svchost.exe usually means you usually just ran runas.exe)");
-                        } else if (ProcessName.Contains("lsass.exe"))
+                        }
+                        else if (ProcessName.Contains("lsass.exe"))
                         {
                             toast.AddText("(lsass.exe usually means you just RDP'd)");
                         }
@@ -439,7 +453,7 @@ namespace PSP_Console
 
                     }
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -449,6 +463,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -508,12 +526,12 @@ namespace PSP_Console
 
 
                     // Is the machine account doing it?
-                    if ( !SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
+                    if (!SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
                     {
                         Helper.WriteToLog("Machine Account was the one to query", "OUTPUT");
                     }
 
-                    if (sid.EndsWith("-544") && localAdminGroupList.Contains(translatedUserName) )
+                    if (sid.EndsWith("-544") && localAdminGroupList.Contains(translatedUserName))
                     {
                         Helper.WriteToLog("User was already in Admin Group!", "OUTPUT");
                     }
@@ -524,7 +542,8 @@ namespace PSP_Console
                     {
                         toast.AddText("WARNING: User added to local Admin Group! ");
                     }
-                    else if (TargetSid.EndsWith("--546")) {
+                    else if (TargetSid.EndsWith("--546"))
+                    {
                         toast.AddText("WARNING: User added to local Guest Group! ");
                     }
                     else if (TargetSid.EndsWith("-547"))
@@ -694,7 +713,7 @@ namespace PSP_Console
                         toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_POLICY_ADMINS Group! ");
                         toast.AddText("The policy administrators' group.");
                     }
-                    else 
+                    else
                     {
                         toast.AddText("With a cumstom (Unknown) Group");
                     }
@@ -704,7 +723,7 @@ namespace PSP_Console
                     // that every few hours this will redundantly tell me that the users that are already in the admin group
                     // are being added to the admin group. So this is a quick fix
                     // TODO: Create my own list of users & group memeberships
-                    if(TargetSid.EndsWith("-544") && localAdminGroupList.Contains(MemberSid))
+                    if (TargetSid.EndsWith("-544") && localAdminGroupList.Contains(MemberSid))
                     {
                         Helper.WriteToLog("Supressed alert notifying user added to the admin group because they were already a member");
                     }
@@ -712,9 +731,8 @@ namespace PSP_Console
                     {
                         toast.Show();
                     }
-                        
 
-                    Helper.WriteToLog("---------------------------------------");
+
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -724,6 +742,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -786,7 +808,7 @@ namespace PSP_Console
                     String SidHistory = logEventProps[10].ToString();
 
                     // Output to File, Console and Pop-up
-                    Helper.WriteToLog(SubjectUsername + " Created a User Account: " + TargetUserName , "OUTPUT");
+                    Helper.WriteToLog(SubjectUsername + " Created a User Account: " + TargetUserName, "OUTPUT");
                     Helper.WriteToLog("TargetUserName: " + TargetUserName, "OUTPUT");
                     Helper.WriteToLog("SamAccountName: " + SamAccountName, "OUTPUT");
                     Helper.WriteToLog("DisplayName: " + DisplayName, "OUTPUT");
@@ -799,7 +821,7 @@ namespace PSP_Console
 
                     string message = "";
                     // Looking at SAM account name
-                    if(TargetUserName.Trim() != SamAccountName.Trim() && SamAccountName != "-" && SamAccountName.Trim() != "")
+                    if (TargetUserName.Trim() != SamAccountName.Trim() && SamAccountName != "-" && SamAccountName.Trim() != "")
                     {
                         message += "Sam Account Name: " + SamAccountName + ".  ";
                     }
@@ -836,7 +858,7 @@ namespace PSP_Console
                     }
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -846,6 +868,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -980,7 +1006,7 @@ namespace PSP_Console
                         Helper.WriteToLog("Could not parse the Logon Type number: " + LogonType, "ERROR");
                     }
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -990,6 +1016,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         } // end process4625_LogonFailed
@@ -1007,7 +1037,7 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='SubjectUserName']",
                     "Event/EventData/Data[@Name='TargetUserName']",
                     "Event/EventData/Data[@Name='CallerProcessName']",
-                    "Event/EventData/Data[@Name='CallerProcessId']", 
+                    "Event/EventData/Data[@Name='CallerProcessId']",
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -1036,7 +1066,7 @@ namespace PSP_Console
                         if (!SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))  // This might fail if the hostname is longer than 15 chars
                         {
                             // There seems to be a lot of WMI based group enumeration, I think I would only care if cmd.exe or something did it
-                            if(CallerProcessName != @"C:\Windows\System32\wbem\WmiPrvSE.exe")
+                            if (CallerProcessName != @"C:\Windows\System32\wbem\WmiPrvSE.exe")
                             {
                                 // Store in 'Database'
                                 long record_id = (long)eventRecord.EventRecord.RecordId;
@@ -1059,7 +1089,7 @@ namespace PSP_Console
                             }
                         }
                     }
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1069,6 +1099,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         } // process4798_LocalGroupEnum
@@ -1080,14 +1114,14 @@ namespace PSP_Console
             String[] xPathArray = new[]
                 {
                     "Event/EventData/Data[@Name='SubjectUserName']", // Don't know what the structure of the XML is so TODO: fill in later
-                    "Event/EventData/Data[@Name='TargetUserName']", 
+                    "Event/EventData/Data[@Name='TargetUserName']",
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
             {
                 try
                 {
-                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector); 
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
                     for (int i = 0; i < logEventProps.Count; i++)
                     {
                         if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
@@ -1118,7 +1152,7 @@ namespace PSP_Console
                     //.AddText("The source probably needs to be added to the known-good list");
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1128,6 +1162,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         } // process4798_LocalGroupEnum
@@ -1172,7 +1210,7 @@ namespace PSP_Console
                     .AddText("The source probably needs to be added to the known-good list");
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1182,6 +1220,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -1237,10 +1279,11 @@ namespace PSP_Console
                         .AddText("Done by: " + SubjectUserName);
 
                         // TODO: Translate SID's to human readble
-                        if(LogonProcessName.ToUpper() == "WINLOGON")
+                        if (LogonProcessName.ToUpper() == "WINLOGON")
                         {
                             toast.AddText("This might be RDP Traffic");
-                        } else if (LogonProcessName.ToUpper() == "HTTP.SYS")
+                        }
+                        else if (LogonProcessName.ToUpper() == "HTTP.SYS")
                         {
                             toast.AddText("This might be WinRM being enabled");
                         }
@@ -1248,12 +1291,12 @@ namespace PSP_Console
                         {
                             toast.AddText("The source probably needs to be added to the known-good list");
                         }
-                        
+
                         toast.Show();
                     }
-                    
 
-                    Helper.WriteToLog("---------------------------------------");
+
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1263,6 +1306,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -1307,7 +1354,7 @@ namespace PSP_Console
                     .AddText("The Dll probably needs to be added to the known-good list"); ;
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1317,6 +1364,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -1362,7 +1413,7 @@ namespace PSP_Console
                     .AddText("This probably needs to be added to the known-good list"); ;
                     toast.Show();
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1372,6 +1423,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }
@@ -1406,7 +1461,7 @@ namespace PSP_Console
                 try
                 {
                     IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
-                    for(int i = 0; i < logEventProps.Count; i++)
+                    for (int i = 0; i < logEventProps.Count; i++)
                     {
                         if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
                         {
@@ -1478,7 +1533,8 @@ namespace PSP_Console
                             if ((logonType == 3) && (AuthenticationPackageName == "Kerberos") && (TargetUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$")))  // This might fail if the hostname is longer than 15 chars
                             {
                                 Helper.WriteToLog("(Kerberos is being weird again)", "OUTPUT");
-                            } else 
+                            }
+                            else
                             {
                                 // Toast 
                                 string message = "";
@@ -1487,19 +1543,20 @@ namespace PSP_Console
                                 .AddArgument("conversationId", record_id);
 
                                 // Title Message
-                                if(logonType == 10)
+                                if (logonType == 10)
                                 {
                                     toast.AddText("RDP Logon Success (Logon Type 10) ");
-                                } else if((logonType == 3) && (LogonGuid.Contains("00000000-0000-0000-0000-000000000000")))
+                                }
+                                else if ((logonType == 3) && (LogonGuid.Contains("00000000-0000-0000-0000-000000000000")))
                                 {
                                     toast.AddText("WinRM Logon Success (Type 3, Null GUID)");
                                 }
-                                    else
+                                else
                                 {
                                     toast.AddText("Logon Success Type: " + LogonType);
                                 }
 
-                                
+
 
                                 message += "User: " + TargetDomainName + "\\" + TargetUserName;
                                 if (Helper.isRemoteIP(IP))
@@ -1523,7 +1580,7 @@ namespace PSP_Console
                                 toast.AddText(message);
                                 toast.Show();
                             }
-                            
+
                         }
                     }
                     else
@@ -1531,7 +1588,7 @@ namespace PSP_Console
                         Helper.WriteToLog("Could not parse the Logon Type number: " + LogonType, "ERROR");
                     }
 
-                    Helper.WriteToLog("---------------------------------------");
+                    
 
                 }
                 catch (System.ArgumentOutOfRangeException)
@@ -1541,6 +1598,10 @@ namespace PSP_Console
                 catch (System.NullReferenceException)
                 {
                     Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
                 }
             }
         }

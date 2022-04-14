@@ -836,7 +836,7 @@ namespace PSP_Console
                     {
                         toast.AddText("WARNING: User added to local Admin Group! ");
                     }
-                    else if (TargetSid.EndsWith("--546"))
+                    else if (TargetSid.EndsWith("-546"))
                     {
                         toast.AddText("WARNING: User added to local Guest Group! ");
                     }
@@ -1195,7 +1195,7 @@ namespace PSP_Console
                     "Event/EventData/Data[@Name='SubjectDomainName']",  // WORKGROUP by defaultd
                     "Event/EventData/Data[@Name='AuthenticationPackageName']",  // auth
                     "Event/EventData/Data[@Name='LmPackageName']",  // auth package name
-                    "Event/EventData/Data[@Name='LogonGuid']",  // It seems to be "{00000000-0000-0000-0000-000000000000}" for (malicious) WinRM connections
+                    "Event/EventData/Data[@Name='LogonGuid']",  // It seems to be "{00000000-0000-0000-0000-000000000000}" for many types of connections connections
                 };
 
             using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
@@ -1807,7 +1807,7 @@ namespace PSP_Console
                     Helper.WriteToLog("Logon Id: " + LogonId);
                     Helper.WriteToLog("Logon Type: " + LogonType);
                     Helper.WriteToLog("Elevated Token: " + ElevatedToken);
-                    Helper.WriteToLog("Workstation Name: " + WorkstationName); // Workstation Name: XPSTAU
+                    Helper.WriteToLog("Workstation Name: " + WorkstationName); 
                     Helper.WriteToLog("Process Name: " + ProcessName);
                     Helper.WriteToLog("IP Address: " + IP);
                     Helper.WriteToLog("IP Port: " + Port);
@@ -1866,10 +1866,10 @@ namespace PSP_Console
                                 {
                                     toast.AddText("RDP Logon Success (Logon Type 10) ");
                                 }
-                                else if ((logonType == 3) && (LogonGuid.Contains("00000000-0000-0000-0000-000000000000")))
-                                {
-                                    toast.AddText("WinRM Logon Success (Type 3, Null GUID)");
-                                }
+                                //else if ((logonType == 3) && (LogonGuid.Contains("00000000-0000-0000-0000-000000000000")))
+                                //{
+                                //    toast.AddText("WinRM Logon Success (Type 3, Null GUID)");
+                                //}
                                 else
                                 {
                                     toast.AddText("Logon Success Type: " + LogonType);

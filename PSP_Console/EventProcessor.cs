@@ -1799,7 +1799,7 @@ namespace PSP_Console
 
                             // Store in 'Database'
                             long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                                RecordedEvents.Add(record_id, eventRecord);
+                            RecordedEvents.Add(record_id, eventRecord);
 
                             if (Helper.isRemoteIP(IP))
                             {
@@ -1820,8 +1820,10 @@ namespace PSP_Console
                                 // Toast 
                                 string message = "";
                                 // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
+                                // Trying new event id printing to make parsing more reliable:
+                                string eventRecordString = record_id.ToString("0." + new string('#', 339));
                                 ToastContentBuilder toast = new ToastContentBuilder()
-                                .AddArgument("conversationId", record_id);
+                                .AddArgument("conversationId", eventRecordString);
 
                                 // Title Message
                                 if (logonType == 10)

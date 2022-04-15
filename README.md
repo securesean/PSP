@@ -44,6 +44,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 
 ## Future Feature Ideas:
 - Better logging on the reason for a crash
+- After self testing, and finding that some events are not enabled, see if I can't automatiaclly enable them (such as service installed events). Look at  https://github.com/rkovar/PowerShell/blob/master/audit.bat
 - Automatic port scanning of would-be attacker machines who have attempted remote logons
 - Alert on malicious looking WinRM commands under Microsoft-Windows-WinRM/Operational (Event ID 91).
 - Create persistence so it run on logon
@@ -74,6 +75,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - Vaccine capabilitiy - launch known analysis tool file names, mutex's
 - Perhaps look at what a local sigma instance might look like?
 - Pull down public domain/ip known malicious ip's/domains 
+- Leverage intel from https://strontic.github.io/xcyclopedia/
 
 ## In next re-write:
 - Make gathering admin's a periodic background task (Right now it can be REALLY SLOW)

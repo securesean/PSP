@@ -12,7 +12,7 @@ namespace PSP_Console
 {
     internal class EventProcessor
     {
-        private List<string> localAdminGroupList;
+        private List<string> localAdminGroupList = new List<string>();
         private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
         private string EventVaule_NotSet = "%%1793";
         Thread RefreshAdminListThread;
@@ -32,9 +32,14 @@ namespace PSP_Console
 
         private void RefreshAdminListDriver()
         {
+            List<string> tempList = new List<string>();
             while (true)
             {
-                localAdminGroupList = Helper.GetLocalAdminSIDs();
+                tempList = Helper.GetLocalAdminSIDs();
+                if(tempList.Count != 0)
+                {
+                    localAdminGroupList = tempList;
+                }
                 Thread.Sleep(1000 * 60);
             }
 
@@ -92,10 +97,8 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
-                        RecordedEvents.Add(record_id, eventRecord);
-                    }
+                    RecordedEvents.Add(record_id, eventRecord);
+                    
 
 
                     // Toast 
@@ -467,10 +470,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who installed Service: " + SubjectUserName, "OUTPUT");
@@ -550,10 +550,8 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
-                        RecordedEvents.Add(record_id, eventRecord);
-                    }
+                    RecordedEvents.Add(record_id, eventRecord);
+                    
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog(SubjectUserName + " enabled the local user " + TargetUserName, "OUTPUT");
@@ -621,10 +619,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     // Output to File, Console
                     Helper.WriteToLog(SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'", "OUTPUT");
@@ -705,10 +700,7 @@ namespace PSP_Console
 
                         // Store in 'Database'
                         long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        if (eventRecord.EventRecord.RecordId != null)
-                        {
                             RecordedEvents.Add(record_id, eventRecord);
-                        }
 
                         // Output to File, Console
                         Helper.WriteToLog(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe or RDP) as '" + TargetDomainName + "\\" + TargetUserName + "'", "OUTPUT");
@@ -792,10 +784,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     string sid = MemberSid;
                     string localGroup = TargetUserName;
@@ -1087,10 +1076,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     String SubjectUsername = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
@@ -1259,10 +1245,7 @@ namespace PSP_Console
 
                             // Store in 'Database'
                             long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                            if (eventRecord.EventRecord.RecordId != null)
-                            {
                                 RecordedEvents.Add(record_id, eventRecord);
-                            }
 
                             if (Helper.isRemoteIP(IP))
                             {
@@ -1372,10 +1355,7 @@ namespace PSP_Console
                             {
                                 // Store in 'Database'
                                 long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                                if (eventRecord.EventRecord.RecordId != null)
-                                {
                                     RecordedEvents.Add(record_id, eventRecord);
-                                }
 
                                 // Output to File, Console and Pop-up
                                 Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
@@ -1442,10 +1422,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User " + SubjectUserName + " deleted local user " + TargetUserName, "OUTPUT");
@@ -1503,10 +1480,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("An Auth Provider was loadead", "OUTPUT");
@@ -1574,10 +1548,7 @@ namespace PSP_Console
                     {
                         // Store in 'Database'
                         long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        if (eventRecord.EventRecord.RecordId != null)
-                        {
-                            RecordedEvents.Add(record_id, eventRecord);
-                        }
+                        RecordedEvents.Add(record_id, eventRecord);
 
 
                         // Output to File, Console and Pop-up
@@ -1653,10 +1624,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
@@ -1715,10 +1683,7 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    if (eventRecord.EventRecord.RecordId != null)
-                    {
                         RecordedEvents.Add(record_id, eventRecord);
-                    }
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Lsass Loaded a Package!", "OUTPUT");
@@ -1834,10 +1799,7 @@ namespace PSP_Console
 
                             // Store in 'Database'
                             long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                            if (eventRecord.EventRecord.RecordId != null)
-                            {
                                 RecordedEvents.Add(record_id, eventRecord);
-                            }
 
                             if (Helper.isRemoteIP(IP))
                             {

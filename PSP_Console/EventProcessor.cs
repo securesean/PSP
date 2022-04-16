@@ -98,13 +98,14 @@ namespace PSP_Console
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
                     RecordedEvents.Add(record_id, eventRecord);
-                    
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+
 
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
                     .AddText(SubjectUserName + " Cleared Security Log!");
-                    toast.AddArgument("conversationId", record_id);
+                    toast.AddArgument("conversationId", eventRecordString);
                     toast.Show();
 
                     
@@ -470,7 +471,8 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who installed Service: " + SubjectUserName, "OUTPUT");
@@ -490,7 +492,7 @@ namespace PSP_Console
                     // Toast 
                     // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText("Service Installed by " + SubjectUserName)
                     .AddText("ServiceName: " + ServiceName)
                     .AddText("ServiceFileName: " + ServiceFileName);
@@ -551,14 +553,15 @@ namespace PSP_Console
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
                     RecordedEvents.Add(record_id, eventRecord);
-                    
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog(SubjectUserName + " enabled the local user " + TargetUserName, "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText(SubjectUserName + " enabled the local user " + TargetUserName);
                     if (TargetSid.ToString().EndsWith("-500"))
                     {
@@ -619,14 +622,15 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     // Output to File, Console
                     Helper.WriteToLog(SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'", "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText(SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'");
 
                     toast.Show();
@@ -700,7 +704,8 @@ namespace PSP_Console
 
                         // Store in 'Database'
                         long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                            RecordedEvents.Add(record_id, eventRecord);
+                        RecordedEvents.Add(record_id, eventRecord);
+                        string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                         // Output to File, Console
                         Helper.WriteToLog(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe or RDP) as '" + TargetDomainName + "\\" + TargetUserName + "'", "OUTPUT");
@@ -708,7 +713,7 @@ namespace PSP_Console
 
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
-                        .AddArgument("conversationId", record_id)
+                        .AddArgument("conversationId", eventRecordString)
                         .AddText(SubjectUserName + " performed a logon using explicit creds as '" + TargetDomainName + "\\" + TargetUserName + "'");
                         if (Helper.isRemoteIP(IpAddress))
                         {
@@ -784,7 +789,8 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     string sid = MemberSid;
                     string localGroup = TargetUserName;
@@ -804,7 +810,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText(SubjectUserName + " added a user (" + translatedUserName + ") to the group: " + TargetUserName);
 
 
@@ -1076,7 +1082,8 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     String SubjectUsername = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
@@ -1099,7 +1106,7 @@ namespace PSP_Console
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText("User " + SubjectUsername + " created account: " + TargetUserName);
 
                     string message = "";
@@ -1245,7 +1252,8 @@ namespace PSP_Console
 
                             // Store in 'Database'
                             long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                                RecordedEvents.Add(record_id, eventRecord);
+                            RecordedEvents.Add(record_id, eventRecord);
+                            string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                             if (Helper.isRemoteIP(IP))
                             {
@@ -1257,7 +1265,7 @@ namespace PSP_Console
                             string message = "";
                             // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
                             ToastContentBuilder toast = new ToastContentBuilder()
-                            .AddArgument("conversationId", record_id)
+                            .AddArgument("conversationId", eventRecordString)
                             //.AddText("Logon Failed")
                             .AddText("Logon Failed Type: " + LogonType);
 
@@ -1355,14 +1363,15 @@ namespace PSP_Console
                             {
                                 // Store in 'Database'
                                 long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                                    RecordedEvents.Add(record_id, eventRecord);
+                                RecordedEvents.Add(record_id, eventRecord);
+                                string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                                 // Output to File, Console and Pop-up
                                 Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
 
                                 // Toast 
                                 ToastContentBuilder toast = new ToastContentBuilder()
-                                .AddArgument("conversationId", record_id)
+                                .AddArgument("conversationId", eventRecordString)
                                 .AddText("User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName)
                                 .AddText("Process: " + CallerProcessName);
 
@@ -1422,14 +1431,15 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User " + SubjectUserName + " deleted local user " + TargetUserName, "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText("User " + SubjectUserName + " deleted local user " + TargetUserName);
                     //.AddText("The source probably needs to be added to the known-good list");
                     toast.Show();
@@ -1480,14 +1490,15 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("An Auth Provider was loadead", "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText("An Auth Provider was loadead")
                     .AddText("The source probably needs to be added to the known-good list");
                     toast.Show();
@@ -1549,6 +1560,7 @@ namespace PSP_Console
                         // Store in 'Database'
                         long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
                         RecordedEvents.Add(record_id, eventRecord);
+                        string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
 
                         // Output to File, Console and Pop-up
@@ -1556,7 +1568,7 @@ namespace PSP_Console
 
                         // Toast 
                         ToastContentBuilder toast = new ToastContentBuilder()
-                        .AddArgument("conversationId", record_id)
+                        .AddArgument("conversationId", eventRecordString)
                         .AddText("Lsass Logged on a Process: " + LogonProcessName)
                         .AddText("Done by: " + SubjectUserName);
 
@@ -1624,14 +1636,15 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText("Dll was given a password due to password reset")
                     .AddText("The Dll probably needs to be added to the known-good list"); ;
                     toast.Show();
@@ -1683,14 +1696,15 @@ namespace PSP_Console
 
                     // Store in 'Database'
                     long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
+                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    RecordedEvents.Add(record_id, eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Lsass Loaded a Package!", "OUTPUT");
 
                     // Toast 
                     ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", record_id)
+                    .AddArgument("conversationId", eventRecordString)
                     .AddText("Lsass Loaded a Package!")
                     .AddText("This probably needs to be added to the known-good list"); ;
                     toast.Show();

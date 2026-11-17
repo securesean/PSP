@@ -16,6 +16,7 @@ namespace PSP_Console
     {
         static EventProcessor eventProcessor;
         static PortScanDetector portScanDetector;
+        static MultiChannelEventMonitor multiChannelMonitor;
         private static bool testMode = false;
         private static bool serviceMode = false;
         private static bool noWait = false;
@@ -199,6 +200,9 @@ namespace PSP_Console
                 portScanDetector = new PortScanDetector(new[] { 80, 443, 22 });
                 portScanDetector.Start();
 
+                multiChannelMonitor = new MultiChannelEventMonitor();
+                multiChannelMonitor.Start();
+
                 Helper.WriteToLog("Subscribed");
                 while (stopEvent == null || !stopEvent.WaitOne(1000))
                 {
@@ -308,6 +312,10 @@ namespace PSP_Console
                 if (SecurityAuditingWatcher != null)
                 {
                     SecurityAuditingWatcher.Dispose();
+                }
+                if (multiChannelMonitor != null)
+                {
+                    multiChannelMonitor.Stop();
                 }
                 if (portScanDetector != null)
                 {

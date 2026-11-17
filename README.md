@@ -33,6 +33,16 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - 4610 - Lsass Loaded Auth Package
    - 4648 - User Logon With Creds
    - 4724 - Password Reset
+   - 4656 / 4663 - Securable Object Accessed (SAM, LSASS, or configured SACL canary keys)
+   - 4672 / 4673 / 4674 - Sensitive Privilege Assignment & Use (`SeDebugPrivilege`, `SeLoadDriverPrivilege`, `SeTakeOwnershipPrivilege`)
+   - 4688 - Suspicious Process Creation (DeepBlueCLI / BST command-line indicators)
+   - 4728 / 4756 - User Added to Global / Universal Security Group
+   - System Log: 104 (Log Cleared), 7030 (Interactive Service), 7036 (Security Service Stopped), 7040 (Service Start Type Changed), 7045 (New Service Installed)
+   - Application Log: 2, 1033, 1107 (Suspicious installer / application events)
+   - AppLocker: 8003, 8004, 8006, 8007 (Blocked EXE, DLL, MSI, or Script execution)
+   - PowerShell Operational: 4103, 4104 (Suspicious PowerShell Script Block / Module execution)
+   - WinRM Operational: 91 (Remote WSMan Shell creation)
+   - Sysmon Operational: 1 (Process Creation), 7 (Image Loaded)
 
 ![RemoteLogon](assets/RemoteLogon.png)
 
@@ -55,10 +65,7 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Alert on securable objects being accessed: https://github.com/OTRF/Set-AuditRule
 - Download and install sysmon if not already running on the system
-- Look at 7030, 7036, 7045, 7040, 104, 4688, 4672, 4720, 4728, 4732, "4756", "4625", "4673", "4674", "4648", "1102", App - 2, AppLocker - "8003", "8004", "8006", "8007", PowerShell - "4103", "4104", SysMon "1", "7", Test Event Number "1033", "1107" from https://github.com/ManuelBerrueta/BST/blob/main/Windows/Search_EVTX_LogEvents.ps1 and https://github.com/sans-blue-team/DeepBlueCLI
-- Alert on malicious looking WinRM commands under Microsoft-Windows-WinRM/Operational (Event ID 91).
 - Alert if local token filter policy is changed (the reg key)
 - Alert if FireWall is disabled
 - Alert if FireWall rule has been added so a process can start listening

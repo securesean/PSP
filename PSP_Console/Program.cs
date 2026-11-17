@@ -60,7 +60,7 @@ namespace PSP_Console
                 //});
 
                 string eventRecordID = toastArgs.Argument.Substring(15);  // Remove "conversationId="
-                System.Console.WriteLine("Openning Event Record " + eventRecordID);
+                System.Console.WriteLine("Opening Event Record " + eventRecordID);
                 eventProcessor.WriteAndOpen(eventRecordID);
             };
 

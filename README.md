@@ -2,16 +2,16 @@
 
 Sean Pierce
 
-As normal computer user, I've always been a little miffed that I don't have a basic awareness of who is remotely accessing/scanning/attacking my machine. So I created this program to simply notify me of the most obvious events I would want to know about.
+As normal computer user, I've always been a little miffed that I don't have a basic awareness of who is remotely accessing/scanning/attacking my machine. So I created this program to simply notify me of the most obvious events I would want to know about. I'm making/testing this as I go along and I add things when something jumps out to me as an attacker. I'm not implementing a stig checker / attack surface analyzer but I will list remote access oriented things such as LocalAccountTokenFilterPolicy. Everything here is just a PoC; When I get serious I will re-implement it as a service, with a real installer and updater.
 
-## How to Compile:
-- Right click on the project in the "Solution Explorer" and choose, "Manage NuGet Packages" and install, "Microsoft.Toolkit.Uwp.Notifications"
-- Right click and "Run as Admin"
+## Download
+[Latest Version Here](https://github.com/securesean/PSP/releases)
 
 ## Features:
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to %Programdata%\PSP_Logs
 - Toast on-click event opens the xml log 
+- `--test` will test about half the events to verify end-to-end functionality 
 - Supported Events:
    - 4624 - Logon Success 
    - 4625 - Logon Failed 
@@ -41,12 +41,43 @@ As normal computer user, I've always been a little miffed that I don't have a ba
  - Inspired based on: https://www.stigviewer.com/stig/windows_7/2017-12-01/finding/V-26556 Fix Text (F-29805r1_fix)
  - GUI - secpol.msc  https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/how-to-configure-security-policy-settings enable "Audit Security System Extension" . C# - https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemauditrule?view=net-6.0
  - GUI - gpedit.msc: Computer Configuration\Windows Settings\Advanced Audit Policy Configuration\System -> "Audit Security System Extension"
+WARNING: I am not a Windows Logging expert and I have observed that making these changes via the GUI will supress other events
+
+
+## How to Compile:
+- Right click on the project in the "Solution Explorer" and choose, "Manage NuGet Packages" and install, "Microsoft.Toolkit.Uwp.Notifications"
+- Click Build Solution
+
 
 ## Future Feature Ideas:
+- Add start-up folder lnk persistence
+- Add seconds to log output
+- Insert Version checking simple CSV: version,hash,message. Toast -> URL to git downloads page
+- Add button to "never show this message again" for common events
+- Include/Display Basic License with EULA (gross I know)
 - Better logging on the reason for a crash
 - After self testing, and finding that some events are not enabled, see if I can't automatiaclly enable them (such as service installed events). Look at  https://github.com/rkovar/PowerShell/blob/master/audit.bat
 - Automatic port scanning of would-be attacker machines who have attempted remote logons
+- Alert on Windows Security Log Event ID 4799: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4799
+- Alert on Windows Security Log Event ID 4798: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4798
+- Alert on securable objects being accessed: https://github.com/OTRF/Set-AuditRule
+- Look at 7030, 7036, 7045, 7040, 104, 4688, 4672, 4720, 4728, 4732, "4756", "4625", "4673", "4674", "4648", "1102", App - 2, AppLocker - "8003", "8004", "8006", "8007", PowerShell - "4103", "4104", SysMon "1", "7", Test Event Number "1033", "1107" from https://github.com/ManuelBerrueta/BST/blob/main/Windows/Search_EVTX_LogEvents.ps1 and https://github.com/sans-blue-team/DeepBlueCLI
 - Alert on malicious looking WinRM commands under Microsoft-Windows-WinRM/Operational (Event ID 91).
+- Check for local token filter policy
+- Check for local firewall settings 
+- Alert if FireWall is disabled
+- Alert if FireWall rule has been added so a process can start listening?
+- Alert if a service starts listening on a port?
+- Alert if any service starts listening on a port?
+- Do basic security checks such as WinRm/RDP is enabled, Guest is enabled and is in groups, the Admin account is enabled with default name. Look at stigs for inspiration . 
+- Print basic information such as "X number of users can access this computer remotely via RDP, SMB/RPC/DCOM, WinRM"
+- Alert idea: Something started listening on a port
+- Look into WinRM logs: Microsoft-Windows-WinRM-Operational
+- Look into PowerShell log monitoring https://github.com/GoateePFE/PowerShellSummit2019/blob/master/Lab_01_PowerShell_Policies.md
+- Maybe: When an lsass dump file is created
+- ToDo: Add to --test : after increasing logging, reboot and test again (requires persistence)
+- Maybe: Run autoruns periodicly and display any newly installed persistence
+- Maybe: Install sysmon for... network connection lists ('x' is beaconing to 'y'), securely deleted files, Create Remote Thread?
 - Create persistence so it run on logon
 - Target classic tools:
    - https://blog.menasec.net/2019/03/threat-hunting-26-remote-windows.html 
@@ -78,9 +109,10 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - Leverage intel from https://strontic.github.io/xcyclopedia/
 
 ## In next re-write:
-- Make gathering admin's a periodic background task (Right now it can be REALLY SLOW)
+- Create a real Updater
 - Make real User & Group Objects
 - Make better rule logic flow (instead of messy if statements before every toast notification)
+- Make better self tests
 
 
 

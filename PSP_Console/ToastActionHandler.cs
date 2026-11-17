@@ -273,7 +273,17 @@ namespace PSP_Console
                 }
                 else if (string.Equals(action, "disconnect_network", StringComparison.OrdinalIgnoreCase))
                 {
-                    DisconnectAllNetworksNative();
+                    string procPath = parameters.ContainsKey("path") ? parameters["path"] : "";
+                    DisconnectAllNetworksNative(procPath);
+                }
+                else if (string.Equals(action, "restore_network", StringComparison.OrdinalIgnoreCase))
+                {
+                    RestoreNetworkNative(null);
+                }
+                else if (string.Equals(action, "restore_and_block_exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    string procPath = parameters.ContainsKey("path") ? parameters["path"] : "";
+                    RestoreNetworkNative(procPath);
                 }
             }
             catch (Exception ex)
@@ -380,7 +390,11 @@ namespace PSP_Console
                 });
         }
 
-        public static void DisconnectAllNetworksNative()
+        private static readonly List<string> _disabledAdapterDeviceIds = new List<string>();
+        private static readonly object _adapterLock = new object();
+        private static readonly string SavedAdaptersFilePath = Path.Combine(Helper.path, "saved_network_adapters.txt");
+
+        public static void DisconnectAllNetworksNative(string offendingProcessPath = null, int followUpDelaySeconds = 180)
         {
             int disabledAdapters = 0;
             List<string> adapterNames = new List<string>();
@@ -388,17 +402,36 @@ namespace PSP_Console
 
             try
             {
-                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter WHERE NetEnabled = true"))
-                using (ManagementObjectCollection results = searcher.Get())
+                lock (_adapterLock)
                 {
-                    foreach (ManagementObject adapter in results)
+                    using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter WHERE NetEnabled = true"))
+                    using (ManagementObjectCollection results = searcher.Get())
+                    {
+                        foreach (ManagementObject adapter in results)
+                        {
+                            try
+                            {
+                                string deviceId = Convert.ToString(adapter["DeviceID"]) ?? "";
+                                string name = Convert.ToString(adapter["Name"]) ?? "Adapter";
+                                adapter.InvokeMethod("Disable", null);
+                                disabledAdapters++;
+                                adapterNames.Add(name);
+                                if (!string.IsNullOrEmpty(deviceId) && !_disabledAdapterDeviceIds.Contains(deviceId))
+                                {
+                                    _disabledAdapterDeviceIds.Add(deviceId);
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+                    }
+
+                    if (_disabledAdapterDeviceIds.Count > 0)
                     {
                         try
                         {
-                            string name = Convert.ToString(adapter["Name"]) ?? "Adapter";
-                            adapter.InvokeMethod("Disable", null);
-                            disabledAdapters++;
-                            adapterNames.Add(name);
+                            File.WriteAllLines(SavedAdaptersFilePath, _disabledAdapterDeviceIds);
                         }
                         catch
                         {
@@ -420,12 +453,187 @@ namespace PSP_Console
                 ? string.Format("Disabled {0} network adapter(s): {1}", disabledAdapters, string.Join(", ", adapterNames))
                 : (!string.IsNullOrEmpty(errorMsg) ? "Disconnect error: " + errorMsg : "Disconnected WLAN & released IP leases.");
 
-            Helper.WriteToLog(title + " | " + details, "OUTPUT");
+            Helper.WriteToLog(title + " | " + details + " (Follow-up restore toast scheduled in " + followUpDelaySeconds + "s)", "OUTPUT");
 
             ToastHelper.ShowToast(
                 0,
                 DateTime.UtcNow.Ticks.ToString(),
-                new List<string> { title, details },
+                new List<string>
+                {
+                    title,
+                    details,
+                    "A prompt to restore networking will appear in a few minutes."
+                },
+                BuildNetworkRestoreButtons(offendingProcessPath, title));
+
+            // Schedule follow-up toast after a few minutes offering to restore networking (or restore + block offending process)
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    System.Threading.Thread.Sleep(Math.Max(1, followUpDelaySeconds) * 1000);
+                    PromptNetworkRestoreToast(offendingProcessPath);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("PromptNetworkRestoreToast Timer", ex);
+                }
+            });
+        }
+
+        public static void PromptNetworkRestoreToast(string offendingProcessPath)
+        {
+            string title = "Restore Network Connectivity?";
+            List<string> lines = new List<string>
+            {
+                title,
+                "Networking was disabled in response to a canary alert."
+            };
+            if (!string.IsNullOrEmpty(offendingProcessPath))
+            {
+                lines.Add("Offending Process: " + Path.GetFileName(offendingProcessPath));
+            }
+
+            Helper.WriteToLog("Displaying follow-up Toast to restore networking (Offending process: " + (offendingProcessPath ?? "N/A") + ")", "OUTPUT");
+
+            ToastHelper.ShowToast(
+                0,
+                DateTime.UtcNow.Ticks.ToString(),
+                lines,
+                BuildNetworkRestoreButtons(offendingProcessPath, title));
+        }
+
+        private static List<ToastButtonItem> BuildNetworkRestoreButtons(string offendingProcessPath, string signature)
+        {
+            EnsureIconsGenerated();
+            List<ToastButtonItem> buttons = new List<ToastButtonItem>
+            {
+                new ToastButtonItem
+                {
+                    Content = "Restore Network",
+                    Arguments = "action=restore_network",
+                    IconUri = File.Exists(AutorunsIconPath) ? new Uri(AutorunsIconPath).AbsoluteUri : null
+                }
+            };
+
+            if (!string.IsNullOrEmpty(offendingProcessPath))
+            {
+                buttons.Add(new ToastButtonItem
+                {
+                    Content = "Restore + Firewall Exe",
+                    Arguments = "action=restore_and_block_exe&path=" + Uri.EscapeDataString(offendingProcessPath),
+                    IconUri = File.Exists(BlockIpIconPath) ? new Uri(BlockIpIconPath).AbsoluteUri : null
+                });
+            }
+
+            buttons.Add(new ToastButtonItem
+            {
+                Content = "Don't show",
+                Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature ?? "Restore Network") + "&eventId=0",
+                IconUri = File.Exists(MuteIconPath) ? new Uri(MuteIconPath).AbsoluteUri : null
+            });
+
+            return buttons;
+        }
+
+        public static void RestoreNetworkNative(string processPathToFirewallBlock)
+        {
+            string firewallStatus = null;
+            if (!string.IsNullOrEmpty(processPathToFirewallBlock))
+            {
+                string cleanPath = processPathToFirewallBlock.Trim('"');
+                string exeName = Path.GetFileName(cleanPath);
+                string ruleNameIn = "PSP_Blocked_Process_In_" + exeName;
+                string ruleNameOut = "PSP_Blocked_Process_Out_" + exeName;
+
+                RunCmd("netsh.exe", "advfirewall firewall add rule name=\"" + ruleNameIn + "\" dir=in action=block program=\"" + cleanPath + "\" enable=yes");
+                RunCmd("netsh.exe", "advfirewall firewall add rule name=\"" + ruleNameOut + "\" dir=out action=block program=\"" + cleanPath + "\" enable=yes");
+                firewallStatus = "Blocked inbound & outbound traffic for: " + exeName;
+                Helper.WriteToLog("Created Windows Firewall block rules for offending process: " + cleanPath, "OUTPUT");
+            }
+
+            int enabledCount = 0;
+            List<string> restoredNames = new List<string>();
+
+            try
+            {
+                lock (_adapterLock)
+                {
+                    if (_disabledAdapterDeviceIds.Count == 0 && File.Exists(SavedAdaptersFilePath))
+                    {
+                        try
+                        {
+                            _disabledAdapterDeviceIds.AddRange(File.ReadAllLines(SavedAdaptersFilePath));
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter WHERE PhysicalAdapter = true OR NetEnabled = false"))
+                    using (ManagementObjectCollection results = searcher.Get())
+                    {
+                        foreach (ManagementObject adapter in results)
+                        {
+                            try
+                            {
+                                string deviceId = Convert.ToString(adapter["DeviceID"]) ?? "";
+                                if (_disabledAdapterDeviceIds.Contains(deviceId))
+                                {
+                                    string name = Convert.ToString(adapter["Name"]) ?? "Adapter";
+                                    adapter.InvokeMethod("Enable", null);
+                                    enabledCount++;
+                                    restoredNames.Add(name);
+                                }
+                            }
+                            catch
+                            {
+                            }
+                        }
+                    }
+
+                    _disabledAdapterDeviceIds.Clear();
+                    try
+                    {
+                        if (File.Exists(SavedAdaptersFilePath))
+                        {
+                            File.Delete(SavedAdaptersFilePath);
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                RunCmd("ipconfig.exe", "/renew");
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Error while restoring network adapters: " + ex.Message, "ERROR");
+            }
+
+            string title = !string.IsNullOrEmpty(firewallStatus)
+                ? "Network Restored & Process Firewalled"
+                : "Network Restored to Original Status";
+
+            List<string> toastLines = new List<string>
+            {
+                title,
+                enabledCount > 0
+                    ? string.Format("Re-enabled {0} network adapter(s): {1}", enabledCount, string.Join(", ", restoredNames))
+                    : "Re-enabled network adapters & renewed DHCP leases."
+            };
+            if (!string.IsNullOrEmpty(firewallStatus))
+            {
+                toastLines.Add(firewallStatus);
+            }
+
+            Helper.WriteToLog(title + " | " + string.Join(" | ", toastLines), "OUTPUT");
+
+            ToastHelper.ShowToast(
+                0,
+                DateTime.UtcNow.Ticks.ToString(),
+                toastLines,
                 new List<ToastButtonItem>
                 {
                     new ToastButtonItem

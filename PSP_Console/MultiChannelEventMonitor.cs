@@ -397,7 +397,7 @@ namespace PSP_Console
                                 new ToastButtonItem
                                 {
                                     Content = "Disconnect Network",
-                                    Arguments = "action=disconnect_network",
+                                    Arguments = "action=disconnect_network&path=" + Uri.EscapeDataString(processName ?? ""),
                                     IconUri = File.Exists(ToastActionHandler.BlockIpIconPath) ? new Uri(ToastActionHandler.BlockIpIconPath).AbsoluteUri : null
                                 }
                             };

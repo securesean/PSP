@@ -217,21 +217,34 @@ namespace PSP_Console
                 }
                 else if (string.Equals(action, "check_vt", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("path"))
                 {
-                    string filePath = parameters["path"];
+                    string filePath = parameters["path"].Trim('"');
                     if (File.Exists(filePath))
                     {
                         string sha256 = ComputeSha256(filePath);
                         string vtUrl = "https://www.virustotal.com/gui/file/" + sha256;
                         Helper.WriteToLog("Toast Action Executed: Computed SHA-256 for " + filePath + " = " + sha256 + " -> " + vtUrl, "OUTPUT");
-                        // Open the VT URL in the default browser
-                        Process.Start(new ProcessStartInfo(vtUrl) { UseShellExecute = true });
 
-                        // copy file to desktop for upload to VT if user wants to do manual upload, then notify user
-                        string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                        string destPath = Path.Combine(desktopPath, Path.GetFileName(filePath));
-                        File.Copy(filePath, destPath, true);
-                        Helper.WriteToLog("Copied file to Desktop for manual upload to VT: " + destPath, "OUTPUT");
-                    } else
+                        bool handledInUserSession = parameters.ContainsKey("userSessionHandled") && parameters["userSessionHandled"] == "1";
+                        if (!handledInUserSession)
+                        {
+                            // Open the VT URL in the active user's default browser
+                            ServiceManager.OpenUrlOrFileInUserSession(vtUrl);
+
+                            if (Environment.UserInteractive)
+                            {
+                                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                                string destPath = Path.Combine(desktopPath, Path.GetFileName(filePath));
+                                if (File.Exists(destPath))
+                                {
+                                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                                    destPath = Path.Combine(desktopPath, Path.GetFileNameWithoutExtension(filePath) + "_" + timestamp + Path.GetExtension(filePath));
+                                }
+                                File.Copy(filePath, destPath, true);
+                                Helper.WriteToLog("Copied file to Desktop for manual upload to VT: " + destPath, "OUTPUT");
+                            }
+                        }
+                    }
+                    else
                     {
                         Helper.WriteToLog("Toast Action Executed: File not found for VT check: " + filePath, "ERROR");
                     }
@@ -449,10 +462,7 @@ namespace PSP_Console
                 if (File.Exists(exePath))
                 {
                     Helper.WriteToLog("Autoruns available at: " + exePath, "OUTPUT");
-                    if (Environment.UserInteractive)
-                    {
-                        Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-                    }
+                    ServiceManager.OpenUrlOrFileInUserSession(exePath);
                     return exePath;
                 } else {
                     Helper.WriteToLog("Autoruns executable not found after extraction.", "ERROR");

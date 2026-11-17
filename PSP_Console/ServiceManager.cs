@@ -296,7 +296,30 @@ namespace PSP_Console
         private const uint CREATE_UNICODE_ENVIRONMENT = 0x00000400;
         private const uint CREATE_NO_WINDOW = 0x08000000;
 
-        private static void LaunchProcessInActiveUserSession(string exePath)
+        public static void OpenUrlOrFileInUserSession(string urlOrFilePath)
+        {
+            try
+            {
+                string explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+                if (Environment.UserInteractive && Process.GetCurrentProcess().SessionId > 0)
+                {
+                    Process.Start(new ProcessStartInfo(explorerPath, "\"" + urlOrFilePath + "\"")
+                    {
+                        UseShellExecute = false
+                    });
+                }
+                else
+                {
+                    LaunchProcessInActiveUserSession(explorerPath, "\"" + explorerPath + "\" \"" + urlOrFilePath + "\"", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Failed to open URL/file in user session: " + ex.Message, "ERROR");
+            }
+        }
+
+        private static void LaunchProcessInActiveUserSession(string exePath, string customCmdLine = null, bool noWindow = true)
         {
             uint sessionId = WTSGetActiveConsoleSessionId();
             if (sessionId == 0xFFFFFFFF || sessionId == 0)
@@ -327,8 +350,8 @@ namespace PSP_Console
                 si.lpDesktop = @"winsta0\default";
 
                 PROCESS_INFORMATION pi;
-                uint flags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW;
-                string cmdLine = "\"" + exePath + "\"";
+                uint flags = CREATE_UNICODE_ENVIRONMENT | (noWindow ? CREATE_NO_WINDOW : 0);
+                string cmdLine = customCmdLine ?? ("\"" + exePath + "\"");
 
                 if (CreateProcessAsUser(
                     primaryToken,
@@ -345,7 +368,7 @@ namespace PSP_Console
                 {
                     if (pi.hProcess != IntPtr.Zero) CloseHandle(pi.hProcess);
                     if (pi.hThread != IntPtr.Zero) CloseHandle(pi.hThread);
-                    Helper.WriteToLog("Launched PSP_Notifier.exe into active user session " + sessionId + " (PID " + pi.dwProcessId + ")");
+                    Helper.WriteToLog("Launched " + Path.GetFileName(exePath) + " into active user session " + sessionId + " (PID " + pi.dwProcessId + ")");
                 }
             }
             finally

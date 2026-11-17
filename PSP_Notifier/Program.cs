@@ -129,9 +129,7 @@ namespace PSP_Notifier
 
                 if (parsed.Contains("action"))
                 {
-                    // Write action request for service or handle user-mode action
-                    string actionFile = Path.Combine(AlertsPath, "action_" + Guid.NewGuid().ToString("N") + ".cmd");
-                    File.WriteAllText(actionFile, toastArgs.Argument, Encoding.UTF8);
+                    string actionArgToWrite = toastArgs.Argument;
 
                     if (parsed["action"].Equals("suppress", StringComparison.OrdinalIgnoreCase) && parsed.Contains("signature"))
                     {
@@ -147,21 +145,29 @@ namespace PSP_Notifier
                         {
                             string sha256 = ComputeSha256(filePath);
                             string vtUrl = "https://www.virustotal.com/gui/file/" + sha256;
-                            Process.Start(new ProcessStartInfo(vtUrl) { UseShellExecute = true });
+                            string explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+                            Process.Start(new ProcessStartInfo(explorerPath, "\"" + vtUrl + "\"") { UseShellExecute = false });
+
                             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
                             string destPath = Path.Combine(desktopPath, Path.GetFileName(filePath));
+                            if (File.Exists(destPath))
+                            {
+                                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                                destPath = Path.Combine(desktopPath, Path.GetFileNameWithoutExtension(filePath) + "_" + timestamp + Path.GetExtension(filePath));
+                            }
                             try { File.Copy(filePath, destPath, true); } catch { }
-                            WriteNotifierLog("Opened VirusTotal in user session for " + filePath + " (" + sha256 + ")");
+                            WriteNotifierLog("Opened VirusTotal in user default browser (" + vtUrl + ") and copied binary to " + destPath);
+                            actionArgToWrite += "&userSessionHandled=1";
                         }
-                    }
-                    else if (parsed["action"].Equals("autoruns", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string autorunsExe = Path.Combine(BasePath, "Tools", "Autoruns", Environment.Is64BitOperatingSystem ? "Autoruns64.exe" : "Autoruns.exe");
-                        if (File.Exists(autorunsExe))
+                        else
                         {
-                            Process.Start(new ProcessStartInfo(autorunsExe) { UseShellExecute = true });
+                            WriteNotifierLog("VT check target file not found: " + filePath);
                         }
                     }
+
+                    // Write action request for service logging / handling
+                    string actionFile = Path.Combine(AlertsPath, "action_" + Guid.NewGuid().ToString("N") + ".cmd");
+                    File.WriteAllText(actionFile, actionArgToWrite, Encoding.UTF8);
                 }
 
                 string eventRecordId = null;

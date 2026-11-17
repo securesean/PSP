@@ -382,7 +382,7 @@ namespace PSP_Console
             return map;
         }
 
-        public static Dictionary<int, List<int>> GetListeningTcpPortsByPid()
+        public static Dictionary<int, List<int>> GetListeningTcpPortsByPid(bool excludeLoopback = true)
         {
             Dictionary<int, List<int>> result = new Dictionary<int, List<int>>();
             int bufferSize = 0;
@@ -399,6 +399,13 @@ namespace PSP_Console
                     for (int i = 0; i < rowCount; i++)
                     {
                         MIB_TCPROW_OWNER_PID row = (MIB_TCPROW_OWNER_PID)Marshal.PtrToStructure(rowPtr, typeof(MIB_TCPROW_OWNER_PID));
+                        IPAddress localIp = new IPAddress(row.localAddr);
+                        if (excludeLoopback && IPAddress.IsLoopback(localIp))
+                        {
+                            rowPtr = (IntPtr)((long)rowPtr + rowSize);
+                            continue;
+                        }
+
                         int localPort = (int)(((row.localPort & 0xFF) << 8) | ((row.localPort >> 8) & 0xFF));
                         int pid = (int)row.owningPid;
 

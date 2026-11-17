@@ -473,11 +473,11 @@ namespace PSP_Console
 
         private static List<ListeningPortEntry> EvaluateListeningPortsAndServices()
         {
-            Helper.WriteToLog("\n--- [6] Programs and Services Listening on TCP Ports ---", "OUTPUT");
+            Helper.WriteToLog("\n--- [6] Remotely Accessible Programs and Services Listening on TCP Ports (Excluding Loopback) ---", "OUTPUT");
             List<ListeningPortEntry> entries = new List<ListeningPortEntry>();
             try
             {
-                Dictionary<int, List<int>> portsByPid = SystemStateMonitor.GetListeningTcpPortsByPid();
+                Dictionary<int, List<int>> portsByPid = SystemStateMonitor.GetListeningTcpPortsByPid(excludeLoopback: true);
                 Dictionary<int, List<string>> servicesByPid = SystemStateMonitor.GetRunningServicesByPid();
 
                 foreach (KeyValuePair<int, List<int>> kvp in portsByPid)

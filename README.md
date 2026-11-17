@@ -9,6 +9,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 
 ## Features:
 - Can be installed as a persistent Windows Service (`-install` / `-uninstall`) running as `SYSTEM` (`PSPService`) with a separate user-mode notification agent (`PSP_Notifier.exe`) that displays Toast notifications in the interactive user session
+- Structured rule engine (`RuleEngine` & `%ProgramData%\PSP_Logs\rules_config.json`) for evaluating logon exclusions, process filters, and well-known group SIDs
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to %Programdata%\PSP_Logs
 - Toast on-click event opens the xml log 
@@ -51,7 +52,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Make better rule logic flow (instead of messy if statements before every toast notification)
 - Make better self tests - try not to simulate anything. For example, create a real service to test service detection.
 - After self testing, and finding that some events are not enabled, see if I can't automatiaclly enable them (such as service installed events). Look at  https://github.com/rkovar/PowerShell/blob/master/audit.bat
 - Add seconds to log output

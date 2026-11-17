@@ -15,7 +15,6 @@ namespace PSP_Console
         private List<string> localAdminGroupList = new List<string>();
         private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
         private readonly object _recordedEventsLock = new object();
-        private string EventVaule_NotSet = "%%1793";
         private volatile bool _stopping = false;
         Thread RefreshAdminListThread;
 
@@ -534,7 +533,7 @@ namespace PSP_Console
         internal void process4722_UserEnabled(EventRecordWrittenEventArgs eventRecord)
         {
             if (TestMode)
-                TestTriggeredEventIDs.Add(4726);
+                TestTriggeredEventIDs.Add(4722);
 
             String[] xPathArray = new[]
                 {
@@ -702,18 +701,11 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // I don't know why, but sometimes the LOCAL SYSTEM (S-1-5-18) will logon with creds as the machine account
-                    // added "Event/EventData/Data[@Name='SubjectUserSid']", 
-                    if (SubjectUserSid != "S-1-5-18" && !SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
+                    if (RuleEngine.ShouldAlertExplicitCredsLogon(SubjectUserSid, SubjectUserName))
                     {
-
-                        // Store in 'Database' and save XML for user-mode toast agent
                         string eventRecordString = SaveEventRecord(eventRecord);
-
-                        // Output to File, Console
                         Helper.WriteToLog(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe or RDP) as '" + TargetDomainName + "\\" + TargetUserName + "'", "OUTPUT");
 
-                        // Toast via user-mode component
                         List<string> toastLines = new List<string>
                         {
                             SubjectUserName + " performed a logon using explicit creds as '" + TargetDomainName + "\\" + TargetUserName + "'"
@@ -723,16 +715,12 @@ namespace PSP_Console
                             toastLines.Add("From " + IpAddress);
                         }
                         toastLines.Add("From " + ProcessName + " (PID: " + ProcessId + ")");
-                        if (ProcessName.Contains("svchost.exe"))
+                        string processHint = RuleEngine.GetExplicitCredsProcessHint(ProcessName);
+                        if (!string.IsNullOrEmpty(processHint))
                         {
-                            toastLines.Add("(svchost.exe usually means you usually just ran runas.exe)");
-                        }
-                        else if (ProcessName.Contains("lsass.exe"))
-                        {
-                            toastLines.Add("(lsass.exe usually means you just RDP'd)");
+                            toastLines.Add(processHint);
                         }
                         ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
-
                     }
 
                     
@@ -793,8 +781,6 @@ namespace PSP_Console
                     // Store in 'Database' and save XML for user-mode toast agent
                     string eventRecordString = SaveEventRecord(eventRecord);
 
-                    string sid = MemberSid;
-                    string localGroup = TargetUserName;
                     string translatedUserName = "";
                     try
                     {
@@ -806,215 +792,15 @@ namespace PSP_Console
                         translatedUserName = MemberSid;
                     }
                     
-                    // Output to File, Console and Pop-up
                     Helper.WriteToLog(SubjectUserName + " added a user (" + translatedUserName + ") to the local group: '" + TargetUserName + "'", "OUTPUT");
 
-                    // Toast lines
                     List<string> toastLines = new List<string>
                     {
                         SubjectUserName + " added a user (" + translatedUserName + ") to the group: " + TargetUserName
                     };
+                    toastLines.AddRange(RuleEngine.GetGroupSidWarningLines(TargetSid));
 
-
-                    // Is the machine account doing it?
-                    if (!SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
-                    {
-                        Helper.WriteToLog("Machine Account was the one to query", "OUTPUT");
-                    }
-
-                    if (sid.EndsWith("-544") && localAdminGroupList.Contains(translatedUserName))
-                    {
-                        Helper.WriteToLog("User was already in Admin Group!", "OUTPUT");
-                    }
-
-
-
-                    if (TargetSid.EndsWith("-544"))
-                    {
-                        toastLines.Add("WARNING: User added to local Admin Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-546"))
-                    {
-                        toastLines.Add("WARNING: User added to local Guest Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-547"))
-                    {
-                        toastLines.Add("WARNING: User added to local Power Users Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-548"))
-                    {
-                        toastLines.Add("WARNING: User added to local Account Operators Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-549"))
-                    {
-                        toastLines.Add("WARNING: User added to local Server Operators Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-551"))
-                    {
-                        toastLines.Add("WARNING: User added to local Backup Operators Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-552"))
-                    {
-                        toastLines.Add("WARNING: User added to local Replicators Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-554"))
-                    {
-                        toastLines.Add("WARNING: User added to backward compatibility group that allows read access on all users and groups in the domain! ");
-                    }
-                    else if (TargetSid.EndsWith("-555"))
-                    {
-                        toastLines.Add("WARNING: User added to local RDP Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-556"))
-                    {
-                        toastLines.Add("WARNING: User added to Network Configuration Operators Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-557"))
-                    {
-                        toastLines.Add("WARNING: User added to Incoming Forest Trust Builders Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-558"))
-                    {
-                        toastLines.Add("WARNING: User added to Performance Monitor Users Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-559"))
-                    {
-                        toastLines.Add("WARNING: User added to Performance Log Users Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-560"))
-                    {
-                        toastLines.Add("WARNING: User added to Windows Authorization Access Group Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-544"))
-                    {
-                        toastLines.Add("WARNING: User added to Terminal Server License Servers Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-561"))
-                    {
-                        toastLines.Add("WARNING: User added to Terminal Server License Servers Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-562"))
-                    {
-                        toastLines.Add("WARNING: User added to Distributed COM Users Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-569"))
-                    {
-                        toastLines.Add("WARNING: User added to Cryptographic Operators Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-573"))
-                    {
-                        toastLines.Add("WARNING: User added to Event Log Readers Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-574"))
-                    {
-                        toastLines.Add("WARNING: User added to Certificate Service DCOM Access Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-575"))
-                    {
-                        toastLines.Add("WARNING: User added to RDS Remote Access Servers Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-576"))
-                    {
-                        toastLines.Add("WARNING: User added to RDS Endpoint Servers Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-577"))
-                    {
-                        toastLines.Add("WARNING: User added to RDS Management Servers Group! ");
-                    }
-                    else if (TargetSid.EndsWith("-578"))
-                    {
-                        toastLines.Add("WARNING: Members of this group have complete and unrestricted access to all features of Hyper-V.");
-                    }
-                    else if (TargetSid.EndsWith("-579"))
-                    {
-                        toastLines.Add("WARNING: Members of this group can remotely query authorization attributes and permissions for resources on this computer.");
-                    }
-                    else if (TargetSid.EndsWith("-580"))
-                    {
-                        toastLines.Add("WARNING: Members of this group can access WMI resources over management protocols (such as WS-Management via the Windows Remote Management service). This applies only to WMI namespaces that grant access to the user.");
-                    }
-                    else if (TargetSid.EndsWith("-10"))
-                    {
-                        toastLines.Add("WARNING: User added to NTLM Authentication Group! ");
-                        toastLines.Add("A SID that is used when the NTLM authentication package authenticated the client");
-                    }
-                    else if (TargetSid.EndsWith("-64-14"))
-                    {
-                        toastLines.Add("WARNING: A SID that is used when the SChannel authentication package authenticated the client.");
-                    }
-                    else if (TargetSid.EndsWith("-64-21"))
-                    {
-                        toastLines.Add("WARNING: A SID that is used when the Digest authentication package authenticated the client.");
-                    }
-                    else if (TargetSid.EndsWith("-5-80"))
-                    {
-                        toastLines.Add("WARNING: A SID that is used as an NT Service account prefix.");
-                    }
-                    else if (TargetSid.EndsWith("-80-0"))
-                    {
-                        toastLines.Add("WARNING: A group that includes all service processes that are configured on the system. Membership is controlled by the operating system. SID S-1-5-80-0 equals NT SERVICES\\ALL SERVICES. ");
-                    }
-                    else if (TargetSid.EndsWith("-83-0"))
-                    {
-                        toastLines.Add("WARNING: User added to NT VIRTUAL MACHINE\\Virtual Machines Group! ");
-                        toastLines.Add("The group is created when the Hyper-V role is installed. Membership in the group is maintained by the Hyper-V Management Service (VMMS). This group requires the Create Symbolic Links right (SeCreateSymbolicLinkPrivilege), and also the Log on as a Service right (SeServiceLogonRight).");
-                    }
-                    else if (TargetSid.EndsWith("-501"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_USER_RID_GUEST Group! ");
-                        toastLines.Add("The guest-user account in a domain. Users who do not have an account can automatically sign in to this account.");
-                    }
-                    else if (TargetSid.EndsWith("-513"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_USERS Group! ");
-                        toastLines.Add("A group that contains all user accounts in a domain. All users are automatically added to this group.");
-                    }
-                    else if (TargetSid.EndsWith("-514"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_GUESTS Group! ");
-                        toastLines.Add("The group Guest account in a domain.");
-                    }
-                    else if (TargetSid.EndsWith("-515"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_COMPUTERS Group! ");
-                        toastLines.Add("The Domain Computer group. All computers in the domain are members of this group.");
-                    }
-                    else if (TargetSid.EndsWith("-516"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_CONTROLLERS Group! ");
-                        toastLines.Add("The Domain Controller group. All domain controllers in the domain are members of this group.");
-                    }
-                    else if (TargetSid.EndsWith("-517"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_CERT_ADMINS Group! ");
-                        toastLines.Add("The certificate publishers' group. Computers running Active Directory Certificate Services are members of this group.");
-                    }
-                    else if (TargetSid.EndsWith("-518"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_SCHEMA_ADMINS Group! ");
-                        toastLines.Add("The schema administrators' group. Members of this group can modify the Active Directory schema.");
-                    }
-                    else if (TargetSid.EndsWith("-519"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_ENTERPRISE_ADMINS Group! ");
-                        toastLines.Add("	The enterprise administrators' group. Members of this group have full access to all domains in the Active Directory forest. Enterprise administrators are responsible for forest-level operations such as adding or removing new domains.");
-                    }
-                    else if (TargetSid.EndsWith("-520"))
-                    {
-                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_POLICY_ADMINS Group! ");
-                        toastLines.Add("The policy administrators' group.");
-                    }
-                    else
-                    {
-                        toastLines.Add("With a cumstom (Unknown) Group");
-                    }
-
-                    // I AM SO SORRY THIS IS SO SLOPPY. I suspect that everytime Group Policy is enforced, the API's add the
-                    // correct users to the correct groups without checking to see if they are already in there. This means
-                    // that every few hours this will redundantly tell me that the users that are already in the admin group
-                    // are being added to the admin group. So this is a quick fix
-                    // TODO: Create my own list of users & group memeberships
-                    if (TargetSid.EndsWith("-544") && localAdminGroupList.Contains(MemberSid))
+                    if (!RuleEngine.ShouldAlertUserAddedToGroup(TargetSid, MemberSid, localAdminGroupList))
                     {
                         Helper.WriteToLog("Supressed alert notifying user added to the admin group because they were already a member");
                     }
@@ -1109,40 +895,15 @@ namespace PSP_Console
                         "User " + SubjectUsername + " created account: " + TargetUserName
                     };
 
-                    string message = "";
-                    // Looking at SAM account name
-                    if (TargetUserName.Trim() != SamAccountName.Trim() && SamAccountName != "-" && SamAccountName.Trim() != "")
-                    {
-                        message += "Sam Account Name: " + SamAccountName + ".  ";
-                    }
+                    string message = RuleEngine.BuildUserCreatedSummary(
+                        TargetUserName,
+                        SamAccountName,
+                        DisplayName,
+                        UserPrincipalName,
+                        SidHistory,
+                        AllowedToDelegateTo);
 
-                    // Looking at DisplayName
-                    if (TargetUserName.Trim() != DisplayName.Trim() && DisplayName != "-" && DisplayName.Trim() != "" && DisplayName.Trim() != EventVaule_NotSet)
-                    {
-                        message += "Display Name: " + DisplayName + ".  ";
-                    }
-
-                    // Looking at UserPrincipalName
-                    if (TargetUserName.Trim() != UserPrincipalName.Trim() && UserPrincipalName != "-" && UserPrincipalName.Trim() != "" && UserPrincipalName.Trim() != EventVaule_NotSet)
-                    {
-                        message += "Display Name: " + DisplayName + ".  ";
-                    }
-
-                    // Looking at SidHistory
-                    if (SidHistory != "-" && SidHistory.Trim() != "" && SidHistory.Trim() != EventVaule_NotSet)
-                    {
-                        message += "Interesting SID History: " + SidHistory + ".  ";
-                        Helper.WriteToLog("Interesting SID History: " + SidHistory, "OUTPUT");
-                    }
-
-                    // Looking at Deligation
-                    if (AllowedToDelegateTo != "-" && AllowedToDelegateTo.Trim() != "" && AllowedToDelegateTo.Trim() != EventVaule_NotSet)
-                    {
-                        message += "Interesting Deligation Powers: " + AllowedToDelegateTo + ".  ";
-                        Helper.WriteToLog("Interesting Deligation Powers: " + AllowedToDelegateTo, "OUTPUT");
-                    }
-
-                    if (message != "")
+                    if (!string.IsNullOrEmpty(message))
                     {
                         toastLines.Add(message);
                     }
@@ -1233,24 +994,17 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Rule logic. TODO: Create a blacklist style JSON config file
-                    // See https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624
                     int logonType = 0;
                     if (int.TryParse(LogonType, out logonType))
                     {
-                        if (logonType != 5 && logonType != 11 && logonType != 7 && logonType != 2)
-                        // Further testing needed but I'll probably want to exclude
-                        // 4	Batch (i.e. scheduled task)
-                        // 2	Interactive (logon at keyboard and screen of system)
+                        if (RuleEngine.ShouldEvaluateLogonType(logonType))
                         {
-                            // Output to File, Console and Pop-up
                             Helper.WriteToLog("Logon Failed: ", "OUTPUT");
                             Helper.WriteToLog("Logon Type: " + LogonType, "OUTPUT");
                             Helper.WriteToLog("Username: " + TargetDomainName + "\\" + TargetUserName, "OUTPUT");
                             Helper.WriteToLog("Auth: " + AuthenticationPackageName, "OUTPUT");
                             Helper.WriteToLog("Auth Package: " + LmPackageName, "OUTPUT");
 
-                            // Store in 'Database' and save XML for user-mode toast agent
                             string eventRecordString = SaveEventRecord(eventRecord);
 
                             if (Helper.isRemoteIP(IP))
@@ -1259,27 +1013,16 @@ namespace PSP_Console
                                 Helper.WriteToLog("IP Port: " + Port, "OUTPUT");
                             }
 
-                            // Toast via user-mode component
-                            string message = "Attempted Username: " + TargetDomainName + "\\" + TargetUserName;
-                            if (Helper.isRemoteIP(IP))
-                            {
-                                message += "\nIP: " + IP;
-                            }
-                            if (SubjectDomainName != "" && WorkstationName != "")
-                            {
-                                message += "\nAttacker Hostname: " + SubjectDomainName + "\\" + WorkstationName;
-                            }
-
-                            // This is too many lines that toast will display (Max: 4)
-                            if (AuthenticationPackageName != "" && AuthenticationPackageName != "-")
-                            {
-                                message += " Auth: " + AuthenticationPackageName;
-                            }
-                            if (LmPackageName == "" && LmPackageName == "-")
-                            {
-                                message += " Auth Package: " + LmPackageName;
-                            }
-                            ToastHelper.ShowToast(eventRecordString, "Logon Failed Type: " + LogonType, message);
+                            List<string> toastLines = RuleEngine.BuildLogonFailedToastLines(
+                                logonType,
+                                TargetDomainName,
+                                TargetUserName,
+                                IP,
+                                SubjectDomainName,
+                                WorkstationName,
+                                AuthenticationPackageName,
+                                LmPackageName);
+                            ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
                         }
                     }
                     else
@@ -1343,27 +1086,15 @@ namespace PSP_Console
                     string CallerProcessName = logEventProps[2].ToString();
                     string CallerProcessId = logEventProps[3].ToString();
 
-                    if ((CallerProcessName != "-" && CallerProcessId != "0"))
+                    if (RuleEngine.ShouldAlertLocalGroupEnum(SubjectUserName, CallerProcessName, CallerProcessId))
                     {
-                        // When alerting for local group enumeration, the machine account should just be ignored
-                        if (!SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))  // This might fail if the hostname is longer than 15 chars
-                        {
-                            // There seems to be a lot of WMI based group enumeration, I think I would only care if cmd.exe or something did it
-                            if (CallerProcessName != @"C:\Windows\System32\wbem\WmiPrvSE.exe")
-                            {
-                                // Store in 'Database' and save XML for user-mode toast agent
-                                string eventRecordString = SaveEventRecord(eventRecord);
+                        string eventRecordString = SaveEventRecord(eventRecord);
+                        Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
 
-                                // Output to File, Console and Pop-up
-                                Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
-
-                                // Toast via user-mode component
-                                ToastHelper.ShowToast(
-                                    eventRecordString,
-                                    "User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName,
-                                    "Process: " + CallerProcessName);
-                            }
-                        }
+                        ToastHelper.ShowToast(
+                            eventRecordString,
+                            "User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName,
+                            "Process: " + CallerProcessName);
                     }
                     
 
@@ -1528,41 +1259,16 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    if (
-                            LogonProcessName != "ConsentUI" && // UAC I believe
-                            LogonProcessName != "Secondary Logon Service" && // runas.exe - STIG suggests that this be disabled: https://www.stigviewer.com/stig/windows_10/2017-12-01/finding/V-74719
-                            LogonProcessName != "UserManager"  // Lock screen I believe
-
-                        )
+                    if (RuleEngine.ShouldAlertLsassLogon(LogonProcessName))
                     {
-                        // Store in 'Database' and save XML for user-mode toast agent
                         string eventRecordString = SaveEventRecord(eventRecord);
-
-                        // Output to File, Console and Pop-up
                         Helper.WriteToLog("Lsass Logged on a Process: " + LogonProcessName, "OUTPUT");
 
-                        // Toast via user-mode component
-                        List<string> toastLines = new List<string>
-                        {
+                        ToastHelper.ShowToast(
+                            eventRecordString,
                             "Lsass Logged on a Process: " + LogonProcessName,
-                            "Done by: " + SubjectUserName
-                        };
-
-                        // TODO: Translate SID's to human readble
-                        if (LogonProcessName.ToUpper() == "WINLOGON")
-                        {
-                            toastLines.Add("This might be RDP Traffic");
-                        }
-                        else if (LogonProcessName.ToUpper() == "HTTP.SYS")
-                        {
-                            toastLines.Add("This might be WinRM being enabled");
-                        }
-                        else
-                        {
-                            toastLines.Add("The source probably needs to be added to the known-good list");
-                        }
-
-                        ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
+                            "Done by: " + SubjectUserName,
+                            RuleEngine.GetLsassLogonProcessHint(LogonProcessName));
                     }
 
 
@@ -1763,25 +1469,17 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Rule logic. TODO: Create a blacklist style JSON config file
-                    // See https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624
                     int logonType = 0;
                     if (int.TryParse(LogonType, out logonType))
                     {
-                        if (logonType != 5 && logonType != 11 && logonType != 7 && logonType != 2)
-                        // Further testing needed but I'll probably want to exclude
-                        // 4	Batch (i.e. scheduled task)
-                        // 2	Interactive (logon at keyboard and screen of system)
-                        // 10   
+                        if (RuleEngine.ShouldEvaluateLogonType(logonType))
                         {
-                            // Output to File, Console and Pop-up
                             Helper.WriteToLog("Logon Success: ", "OUTPUT");
                             Helper.WriteToLog("Logon Type: " + LogonType, "OUTPUT");
                             Helper.WriteToLog("Username: " + TargetDomainName + "\\" + TargetUserName, "OUTPUT");
                             Helper.WriteToLog("Auth: " + AuthenticationPackageName, "OUTPUT");
                             Helper.WriteToLog("Auth Package: " + LmPackageName, "OUTPUT");
 
-                            // Store in 'Database' and save XML for user-mode toast agent
                             string eventRecordString = SaveEventRecord(eventRecord);
 
                             if (Helper.isRemoteIP(IP))
@@ -1790,50 +1488,22 @@ namespace PSP_Console
                                 Helper.WriteToLog("IP Port: " + Port, "OUTPUT");
                             }
 
-                            // For some unknown reason, when this is running on a domain joined machine I will get a
-                            // local network logon from "kerberos" and with no subject information
-                            // and to the machine account. This person appears to be saying the same thing:
-                            // https://docs.microsoft.com/en-us/answers/questions/46899/computer-account-logon.html
-                            if ((logonType == 3) && (AuthenticationPackageName == "Kerberos") && (TargetUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$")))  // This might fail if the hostname is longer than 15 chars
+                            if (RuleEngine.IsKerberosMachineNoise(logonType, AuthenticationPackageName, TargetUserName))
                             {
                                 Helper.WriteToLog("(Kerberos is being weird again)", "OUTPUT");
                             }
                             else
                             {
-                                // Toast via user-mode component
-                                List<string> toastLines = new List<string>();
-                                if (logonType == 10)
-                                {
-                                    toastLines.Add("RDP Logon Success (Logon Type 10) ");
-                                }
-                                else
-                                {
-                                    toastLines.Add("Logon Success Type: " + LogonType);
-                                }
-
-                                string message = "User: " + TargetDomainName + "\\" + TargetUserName;
-                                if (Helper.isRemoteIP(IP))
-                                {
-                                    if (WorkstationName.Trim() == "")
-                                    {
-                                        message += "\nAttacker Hostname: " + WorkstationName;
-                                    }
-                                    message += "\nIP: " + IP;
-                                }
-
-                                // This is too many lines that toast will display (Max: 4)
-                                if (AuthenticationPackageName != "" && AuthenticationPackageName != "-")
-                                {
-                                    message += " Auth: " + AuthenticationPackageName;
-                                }
-                                if (LmPackageName == "" && LmPackageName == "-")
-                                {
-                                    message += " Auth Package: " + LmPackageName;
-                                }
-                                toastLines.Add(message);
+                                List<string> toastLines = RuleEngine.BuildLogonSuccessToastLines(
+                                    logonType,
+                                    TargetDomainName,
+                                    TargetUserName,
+                                    IP,
+                                    WorkstationName,
+                                    AuthenticationPackageName,
+                                    LmPackageName);
                                 ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
                             }
-
                         }
                     }
                     else

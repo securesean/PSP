@@ -105,12 +105,42 @@ namespace PSP_Console
             {
                 EnsureAlertDirectories();
 
+                List<string> safeLines = lines ?? new List<string>();
+                if (RuleEngine.IsAlertSuppressed(eventId, safeLines))
+                {
+                    Helper.WriteToLog("Suppressed toast notification (user selected 'Never show this message again'): " + RuleEngine.GetAlertSignature(safeLines));
+                    return;
+                }
+
+                List<ToastButtonItem> finalButtons = buttons != null ? new List<ToastButtonItem>(buttons) : new List<ToastButtonItem>();
+                string signature = RuleEngine.GetAlertSignature(safeLines);
+                if (!string.IsNullOrEmpty(signature))
+                {
+                    bool hasSuppressButton = false;
+                    foreach (ToastButtonItem b in finalButtons)
+                    {
+                        if (b != null && b.Arguments != null && b.Arguments.Contains("action=suppress"))
+                        {
+                            hasSuppressButton = true;
+                            break;
+                        }
+                    }
+                    if (!hasSuppressButton && finalButtons.Count < 5)
+                    {
+                        finalButtons.Add(new ToastButtonItem
+                        {
+                            Content = "Never show this again",
+                            Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature) + "&eventId=" + eventId
+                        });
+                    }
+                }
+
                 ToastAlertPayload payload = new ToastAlertPayload
                 {
                     EventId = eventId,
                     EventRecordId = eventRecordId ?? "",
-                    Lines = lines ?? new List<string>(),
-                    Buttons = buttons ?? new List<ToastButtonItem>(),
+                    Lines = safeLines,
+                    Buttons = finalButtons,
                     AppLogoPath = appLogoPath,
                     AudioUri = audioUri
                 };

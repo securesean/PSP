@@ -37,6 +37,7 @@ namespace PSP_Console
     {
         private const string EventValueNotSet = "%%1793";
         public static readonly string ConfigFilePath = Path.Combine(Helper.path, "rules_config.json");
+        public static readonly string SuppressedFilePath = Path.Combine(Helper.path, "suppressed_alerts.txt");
         private static RuleConfig _config;
         private static readonly object _configLock = new object();
 
@@ -139,6 +140,149 @@ namespace PSP_Console
                 catch
                 {
                 }
+            }
+        }
+
+        public static bool IsAlertSuppressed(int eventId, IList<string> lines)
+        {
+            ProcessPendingActionFiles();
+
+            string signature = GetAlertSignature(lines);
+            RuleConfig cfg = GetConfig();
+
+            if (eventId > 0 && cfg.SuppressedEventIds != null && cfg.SuppressedEventIds.Contains(eventId))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(signature))
+            {
+                if (cfg.SuppressedAlertSignatures != null)
+                {
+                    foreach (string s in cfg.SuppressedAlertSignatures)
+                    {
+                        if (string.Equals(s, signature, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                try
+                {
+                    if (File.Exists(SuppressedFilePath))
+                    {
+                        string[] suppressedLines = File.ReadAllLines(SuppressedFilePath);
+                        foreach (string s in suppressedLines)
+                        {
+                            if (string.Equals(s.Trim(), signature, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return false;
+        }
+
+        public static string GetAlertSignature(IList<string> lines)
+        {
+            if (lines == null || lines.Count == 0)
+            {
+                return "";
+            }
+            return (lines[0] ?? "").Trim();
+        }
+
+        public static void SuppressAlertSignature(string signature)
+        {
+            if (string.IsNullOrWhiteSpace(signature))
+            {
+                return;
+            }
+            signature = signature.Trim();
+
+            lock (_configLock)
+            {
+                RuleConfig cfg = GetConfig();
+                if (cfg.SuppressedAlertSignatures == null)
+                {
+                    cfg.SuppressedAlertSignatures = new List<string>();
+                }
+                if (!cfg.SuppressedAlertSignatures.Contains(signature))
+                {
+                    cfg.SuppressedAlertSignatures.Add(signature);
+                    SaveConfig(cfg);
+                }
+
+                try
+                {
+                    File.AppendAllText(SuppressedFilePath, signature + Environment.NewLine);
+                }
+                catch
+                {
+                }
+            }
+
+            Helper.WriteToLog("Added alert signature to 'Never show this message again' suppression list: " + signature, "OUTPUT");
+        }
+
+        public static void ProcessPendingActionFiles()
+        {
+            try
+            {
+                if (!Directory.Exists(ToastHelper.AlertsDirectory))
+                {
+                    return;
+                }
+                string[] actionFiles = Directory.GetFiles(ToastHelper.AlertsDirectory, "action_*.cmd");
+                foreach (string file in actionFiles)
+                {
+                    try
+                    {
+                        string content = File.ReadAllText(file).Trim();
+                        File.Delete(file);
+                        HandleToastActionArgument(content);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        public static void HandleToastActionArgument(string argString)
+        {
+            if (string.IsNullOrEmpty(argString))
+            {
+                return;
+            }
+            string[] parts = argString.Split('&');
+            string action = "";
+            string signature = "";
+            foreach (string part in parts)
+            {
+                int idx = part.IndexOf('=');
+                if (idx > 0)
+                {
+                    string k = part.Substring(0, idx);
+                    string v = Uri.UnescapeDataString(part.Substring(idx + 1));
+                    if (k.Equals("action", StringComparison.OrdinalIgnoreCase)) action = v;
+                    if (k.Equals("signature", StringComparison.OrdinalIgnoreCase)) signature = v;
+                }
+            }
+
+            if (action.Equals("suppress", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(signature))
+            {
+                SuppressAlertSignature(signature);
             }
         }
 

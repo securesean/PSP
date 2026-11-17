@@ -131,6 +131,14 @@ namespace PSP_Notifier
                     // Write action request for service or handle user-mode action
                     string actionFile = Path.Combine(AlertsPath, "action_" + Guid.NewGuid().ToString("N") + ".cmd");
                     File.WriteAllText(actionFile, toastArgs.Argument, Encoding.UTF8);
+
+                    if (parsed["action"].Equals("suppress", StringComparison.OrdinalIgnoreCase) && parsed.Contains("signature"))
+                    {
+                        string sig = Uri.UnescapeDataString(parsed["signature"]);
+                        string suppressedFile = Path.Combine(BasePath, "suppressed_alerts.txt");
+                        File.AppendAllText(suppressedFile, sig + Environment.NewLine, Encoding.UTF8);
+                        WriteNotifierLog("Suppressed future alerts matching signature: " + sig);
+                    }
                 }
 
                 string eventRecordId = null;

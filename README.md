@@ -48,72 +48,56 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Right click on the project in the "Solution Explorer" and choose, "Manage NuGet Packages" and install, "Microsoft.Toolkit.Uwp.Notifications"
 - Click Build Solution
 
-
-## Future Feature Ideas:
-- Add start-up folder lnk persistence
-- Add seconds to log output
-- Insert Version checking simple CSV: version,hash,message. Toast -> URL to git downloads page
-- Add button to "never show this message again" for common events
-- Include/Display Basic License with EULA (gross I know)
-- Better logging on the reason for a crash
+## TODO:
+- Update to support being installed as a Windows Service that will have a user mode component to still show alerts as they are detected
+- Make better rule logic flow (instead of messy if statements before every toast notification)
+- Make better self tests - try not to simulate anything. For example, create a real service to test service detection.
 - After self testing, and finding that some events are not enabled, see if I can't automatiaclly enable them (such as service installed events). Look at  https://github.com/rkovar/PowerShell/blob/master/audit.bat
-- Automatic port scanning of would-be attacker machines who have attempted remote logons
+- Add seconds to log output
+- Add button to "never show this message again" for common events
+- Include/Display Basic License with EULA 
+- Better logging on the reason for a crash
+- Alert on attempted port scanning. Listen on some common ports (80, 443, 22) and alert if anyone trying to connect to them. Automatically do some basic port scanning and name resolution of the host that attempted the connection. 
 - Alert on Windows Security Log Event ID 4799: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4799
 - Alert on Windows Security Log Event ID 4798: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4798
 - Alert on securable objects being accessed: https://github.com/OTRF/Set-AuditRule
+- Download and install sysmon if not already running on the system
 - Look at 7030, 7036, 7045, 7040, 104, 4688, 4672, 4720, 4728, 4732, "4756", "4625", "4673", "4674", "4648", "1102", App - 2, AppLocker - "8003", "8004", "8006", "8007", PowerShell - "4103", "4104", SysMon "1", "7", Test Event Number "1033", "1107" from https://github.com/ManuelBerrueta/BST/blob/main/Windows/Search_EVTX_LogEvents.ps1 and https://github.com/sans-blue-team/DeepBlueCLI
 - Alert on malicious looking WinRM commands under Microsoft-Windows-WinRM/Operational (Event ID 91).
-- Check for local token filter policy
-- Check for local firewall settings 
+- Alert if local token filter policy is changed (the reg key)
 - Alert if FireWall is disabled
-- Alert if FireWall rule has been added so a process can start listening?
-- Alert if a service starts listening on a port?
-- Alert if any service starts listening on a port?
+- Alert if FireWall rule has been added so a process can start listening
+- Alert if a service starts listening on a port
+- Automatically enable additional logging such as "(Audit) System Security Extention" to start producing events such as 4697 (Service Installed)
+- Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
+- Add a better sound for the Toast Notification
+- Add icons for the Toast Notification
+- Add icons for the Toast Notification buttons - https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
+- Monitor for self-performance - primiarly to monitor for memory leak / memory bloat
+
+## TODO - Add a "-SecurityEvaluation" option 
 - Do basic security checks such as WinRm/RDP is enabled, Guest is enabled and is in groups, the Admin account is enabled with default name. Look at stigs for inspiration . 
 - Print basic information such as "X number of users can access this computer remotely via RDP, SMB/RPC/DCOM, WinRM"
-- Alert idea: Something started listening on a port
-- Look into WinRM logs: Microsoft-Windows-WinRM-Operational
-- Look into PowerShell log monitoring https://github.com/GoateePFE/PowerShellSummit2019/blob/master/Lab_01_PowerShell_Policies.md
-- Maybe: When an lsass dump file is created
-- ToDo: Add to --test : after increasing logging, reboot and test again (requires persistence)
-- Maybe: Run autoruns periodicly and display any newly installed persistence
-- Maybe: Install sysmon for... network connection lists ('x' is beaconing to 'y'), securely deleted files, Create Remote Thread?
-- Create persistence so it run on logon
-- Target classic tools:
-   - https://blog.menasec.net/2019/03/threat-hunting-26-remote-windows.html 
-   - https://jpcertcc.github.io/ToolAnalysisResultSheet/
-- Build automated self tests
-- Make a 'Lock down feature' that will stop WinRM,LanMan,RDP,SSH and start listening on those ports
-- Add an evaulation phase/mode/startup 
+- Check local token filter policy  
+- Download and execute autoruns for the user
+- Make a 'Lockdown' mode that will stop WinRM,LanMan,RDP,SSH and start listening on those ports instead to block them
+- The valuation mode will also:
    - list all users/groups in local admin groups
    - resursively lookup domain groups and users in admin groups
    - list weird services
    - list and programs listening on any ports
    - list the services running on those ports 
    - detect if "System Security Extention" is enabled
-- Automatically enable additional logging such as "(Audit) System Security Extention" to start producing events such as 4697 (Service Installed)
-- Add button to all events, "Don't show any more alerts with this information" 
-- Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
-- Add a better sound for the Toast Notification
-- Add icons for the Toast Notification
-- Add icons for the Toast Notification buttons - https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
-- Reimplement as a service
-- Reimplement as a Red Team situational awareness tool
-- subscribe to events on a remote computer: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
+
+# TODO - Possible Future
+- Subscribe to events on a remote computer: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
+- Support self-installing on a remote system
 - Send toast notications to a remote computer
-- Perhaps look at implementing good basic perodic execution rules? (Example: High Entropy file names, known malicious exe names, known malicious pipe names, or rundll32 without any arguements, etc.)
+- Perhaps look at implementing good basic perodic execution rules? (Example: High Entropy file names, single letter executables, known malicious exe names, known malicious pipe names, or rundll32 without any arguements, etc.)
 - Other periodic checks (pre-fetch files deleted)
 - Vaccine capabilitiy - launch known analysis tool file names, mutex's
 - Perhaps look at what a local sigma instance might look like?
-- Pull down public domain/ip known malicious ip's/domains 
-- Leverage intel from https://strontic.github.io/xcyclopedia/
-
-## In next re-write:
-- Create a real Updater
-- Make real User & Group Objects
-- Make better rule logic flow (instead of messy if statements before every toast notification)
-- Make better self tests
-
+- Pull down public domain/ip known malicious ip's/domains and alert if nework detections happen to them. Could leverage intel from https://strontic.github.io/xcyclopedia/
 
 
 ## Credits

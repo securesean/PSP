@@ -101,6 +101,18 @@ namespace PSP_Console
             if (doSecurityEval)
             {
                 SecurityEvaluator.RunSecurityEvaluation(doAutoruns);
+                if (!noWait)
+                {
+                    Helper.WriteToLog("Press Any key to exit");
+                    if (!Console.IsInputRedirected)
+                    {
+                        Console.ReadKey();
+                    }
+                    else
+                    {
+                        Console.ReadLine();
+                    }
+                }
                 return;
             }
 

@@ -2,16 +2,97 @@ using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using System.IO;
 using System.Management;
-using System.Net;
-using System.Net.Sockets;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Security.Principal;
 using System.ServiceProcess;
+using System.Text;
 using System.Threading;
+using System.Xml;
 
 namespace PSP_Console
 {
+    [DataContract]
+    public class RemoteAccessServicesReport
+    {
+        [DataMember(Order = 1)] public bool RdpEnabled { get; set; }
+        [DataMember(Order = 2)] public bool TermServiceRunning { get; set; }
+        [DataMember(Order = 3)] public bool RdpRegistryAllowed { get; set; }
+        [DataMember(Order = 4)] public bool WinRmRunning { get; set; }
+        [DataMember(Order = 5)] public bool SmbLanmanServerRunning { get; set; }
+        [DataMember(Order = 6)] public bool OpenSshRunning { get; set; }
+    }
+
+    [DataContract]
+    public class BuiltInAccountsReport
+    {
+        [DataMember(Order = 1)] public string Rid500AdminName { get; set; }
+        [DataMember(Order = 2)] public bool Rid500AdminEnabled { get; set; }
+        [DataMember(Order = 3)] public bool Rid500UsesDefaultName { get; set; }
+        [DataMember(Order = 4)] public string Rid501GuestName { get; set; }
+        [DataMember(Order = 5)] public bool Rid501GuestEnabled { get; set; }
+        [DataMember(Order = 6)] public List<string> Rid501GuestGroups { get; set; } = new List<string>();
+        [DataMember(Order = 7)] public List<string> StigFindings { get; set; } = new List<string>();
+    }
+
+    [DataContract]
+    public class TokenFilterPolicyReport
+    {
+        [DataMember(Order = 1)] public int? PolicyValue { get; set; }
+        [DataMember(Order = 2)] public string Assessment { get; set; }
+    }
+
+    [DataContract]
+    public class RemoteAccessGroupsReport
+    {
+        [DataMember(Order = 1)] public List<string> LocalAdminsDirect { get; set; } = new List<string>();
+        [DataMember(Order = 2)] public List<string> LocalAdminsRecursive { get; set; } = new List<string>();
+        [DataMember(Order = 3)] public List<string> RemoteDesktopUsersRecursive { get; set; } = new List<string>();
+        [DataMember(Order = 4)] public List<string> DcomUsersRecursive { get; set; } = new List<string>();
+        [DataMember(Order = 5)] public List<string> WinRmUsersRecursive { get; set; } = new List<string>();
+        [DataMember(Order = 6)] public int TotalRdpAccessUsers { get; set; }
+        [DataMember(Order = 7)] public int TotalSmbRpcDcomAccessUsers { get; set; }
+        [DataMember(Order = 8)] public int TotalWinRmAccessUsers { get; set; }
+        [DataMember(Order = 9)] public string Summary { get; set; }
+    }
+
+    [DataContract]
+    public class WeirdServiceEntry
+    {
+        [DataMember(Order = 1)] public string Name { get; set; }
+        [DataMember(Order = 2)] public string State { get; set; }
+        [DataMember(Order = 3)] public string RunsAs { get; set; }
+        [DataMember(Order = 4)] public string Reason { get; set; }
+        [DataMember(Order = 5)] public string PathName { get; set; }
+    }
+
+    [DataContract]
+    public class ListeningPortEntry
+    {
+        [DataMember(Order = 1)] public int ProcessId { get; set; }
+        [DataMember(Order = 2)] public string ProcessName { get; set; }
+        [DataMember(Order = 3)] public List<int> Ports { get; set; } = new List<int>();
+        [DataMember(Order = 4)] public List<string> Services { get; set; } = new List<string>();
+    }
+
+    [DataContract]
+    public class SecurityEvaluationReport
+    {
+        [DataMember(Order = 1)] public string Timestamp { get; set; }
+        [DataMember(Order = 2)] public string ComputerName { get; set; }
+        [DataMember(Order = 3)] public RemoteAccessServicesReport RemoteAccessServices { get; set; }
+        [DataMember(Order = 4)] public BuiltInAccountsReport BuiltInAccounts { get; set; }
+        [DataMember(Order = 5)] public TokenFilterPolicyReport LocalAccountTokenFilterPolicy { get; set; }
+        [DataMember(Order = 6)] public RemoteAccessGroupsReport GroupMembershipsAndRemoteAccess { get; set; }
+        [DataMember(Order = 7)] public List<WeirdServiceEntry> WeirdServices { get; set; } = new List<WeirdServiceEntry>();
+        [DataMember(Order = 8)] public List<ListeningPortEntry> ListeningPortsAndServices { get; set; } = new List<ListeningPortEntry>();
+        [DataMember(Order = 9)] public bool AuditSecuritySystemExtensionEnabled { get; set; }
+    }
+
     public static class SecurityEvaluator
     {
         public static void RunSecurityEvaluation(bool launchAutoruns = false)
@@ -20,29 +101,38 @@ namespace PSP_Console
             Helper.WriteToLog("                PERSONAL SECURITY PRODUCT - SECURITY EVALUATION                ", "OUTPUT");
             Helper.WriteToLog("===============================================================================", "OUTPUT");
 
+            SecurityEvaluationReport report = new SecurityEvaluationReport
+            {
+                Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                ComputerName = Environment.MachineName
+            };
+
             // 1. Check WinRM / RDP / SMB / SSH service & registry status
-            EvaluateRemoteAccessServices();
+            report.RemoteAccessServices = EvaluateRemoteAccessServices();
 
             // 2. Check Guest account & Built-in RID 500 Administrator account (STIG V-63353 / V-63351)
-            EvaluateBuiltInAccounts();
+            report.BuiltInAccounts = EvaluateBuiltInAccounts();
 
             // 3. Check LocalAccountTokenFilterPolicy
-            EvaluateLocalAccountTokenFilterPolicy();
+            report.LocalAccountTokenFilterPolicy = EvaluateLocalAccountTokenFilterPolicy();
 
             // 4. List all direct and recursive users/groups in Local Administrators and Remote Access groups,
             //    and print summary: "X number of users can access this computer remotely via RDP, SMB/RPC/DCOM, WinRM"
-            EvaluateRemoteAccessUsersAndAdminGroups();
+            report.GroupMembershipsAndRemoteAccess = EvaluateRemoteAccessUsersAndAdminGroups();
 
             // 5. List weird services (non-standard paths, unquoted service paths with spaces, writable locations)
-            EvaluateWeirdServices();
+            report.WeirdServices = EvaluateWeirdServices();
 
             // 6. List all programs and Windows Services listening on any TCP ports
-            EvaluateListeningPortsAndServices();
+            report.ListeningPortsAndServices = EvaluateListeningPortsAndServices();
 
             // 7. Detect if "(Audit) Security System Extension" is enabled
-            EvaluateAuditSecuritySystemExtension();
+            report.AuditSecuritySystemExtensionEnabled = EvaluateAuditSecuritySystemExtension();
 
-            // 8. Optionally download and execute Sysinternals Autoruns
+            // 8. Save pretty JSON report to Desktop
+            SaveReportToDesktopJson(report);
+
+            // 9. Optionally download and execute Sysinternals Autoruns
             if (launchAutoruns)
             {
                 ToastActionHandler.LaunchOrDownloadAutoruns();
@@ -57,7 +147,37 @@ namespace PSP_Console
             Helper.WriteToLog("===============================================================================", "OUTPUT");
         }
 
-        private static void EvaluateRemoteAccessServices()
+        private static void SaveReportToDesktopJson(SecurityEvaluationReport report)
+        {
+            try
+            {
+                string desktopDir = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                if (string.IsNullOrEmpty(desktopDir) || !Directory.Exists(desktopDir))
+                {
+                    desktopDir = Helper.path;
+                }
+
+                string jsonPath = Path.Combine(desktopDir, "PSP_SecurityEvaluation.json");
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (XmlDictionaryWriter writer = JsonReaderWriterFactory.CreateJsonWriter(ms, Encoding.UTF8, false, true, "  "))
+                    {
+                        DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(SecurityEvaluationReport));
+                        serializer.WriteObject(writer, report);
+                        writer.Flush();
+                    }
+                    File.WriteAllText(jsonPath, Encoding.UTF8.GetString(ms.ToArray()), Encoding.UTF8);
+                }
+
+                Helper.WriteToLog("\n[Report] Saved pretty JSON Security Evaluation report to Desktop: " + jsonPath, "OUTPUT");
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Failed to write Security Evaluation JSON report to Desktop: " + ex.Message, "ERROR");
+            }
+        }
+
+        private static RemoteAccessServicesReport EvaluateRemoteAccessServices()
         {
             Helper.WriteToLog("\n--- [1] Remote Access Service Checks (WinRM, RDP, SMB, SSH) ---", "OUTPUT");
 
@@ -89,16 +209,26 @@ namespace PSP_Console
             Helper.WriteToLog("WinRM (WS-Management)  : " + (winRmRunning ? "ENABLED (Running)" : "Disabled / Stopped"), winRmRunning ? "ERROR" : "OUTPUT");
             Helper.WriteToLog("SMB (LanmanServer)     : " + (lanmanRunning ? "ENABLED (Running)" : "Disabled / Stopped"), lanmanRunning ? "OUTPUT" : "INFO");
             Helper.WriteToLog("OpenSSH Server (sshd)  : " + (sshRunning ? "ENABLED (Running)" : "Disabled / Stopped"), sshRunning ? "ERROR" : "OUTPUT");
+
+            return new RemoteAccessServicesReport
+            {
+                RdpEnabled = !rdpDisabled || termServiceRunning,
+                TermServiceRunning = termServiceRunning,
+                RdpRegistryAllowed = !rdpDisabled,
+                WinRmRunning = winRmRunning,
+                SmbLanmanServerRunning = lanmanRunning,
+                OpenSshRunning = sshRunning
+            };
         }
 
-        private static void EvaluateBuiltInAccounts()
+        private static BuiltInAccountsReport EvaluateBuiltInAccounts()
         {
             Helper.WriteToLog("\n--- [2] Built-in Account STIG Checks (Guest & Default Administrator) ---", "OUTPUT");
+            BuiltInAccountsReport result = new BuiltInAccountsReport();
             try
             {
                 using (PrincipalContext ctx = new PrincipalContext(ContextType.Machine))
                 {
-                    // Check RID 500 Administrator (S-1-5-21-...-500) and RID 501 Guest (S-1-5-21-...-501)
                     using (UserPrincipal filter = new UserPrincipal(ctx))
                     using (PrincipalSearcher searcher = new PrincipalSearcher(filter))
                     {
@@ -112,13 +242,19 @@ namespace PSP_Console
                             {
                                 bool enabled = user.Enabled ?? false;
                                 bool defaultName = string.Equals(user.Name, "Administrator", StringComparison.OrdinalIgnoreCase);
+                                result.Rid500AdminName = user.Name;
+                                result.Rid500AdminEnabled = enabled;
+                                result.Rid500UsesDefaultName = defaultName;
+
                                 Helper.WriteToLog(
                                     string.Format("RID 500 Built-in Admin : Name='{0}', Enabled={1}, UsesDefaultName={2}",
                                         user.Name, enabled, defaultName),
                                     (enabled && defaultName) ? "ERROR" : "OUTPUT");
                                 if (enabled && defaultName)
                                 {
-                                    Helper.WriteToLog("  [STIG Finding V-63351] Built-in Administrator account is enabled and still uses default name 'Administrator'!", "ERROR");
+                                    string finding = "[STIG Finding V-63351] Built-in Administrator account is enabled and still uses default name 'Administrator'!";
+                                    result.StigFindings.Add(finding);
+                                    Helper.WriteToLog("  " + finding, "ERROR");
                                 }
                             }
                             else if (sid.EndsWith("-501"))
@@ -135,13 +271,19 @@ namespace PSP_Console
                                 catch
                                 {
                                 }
+                                result.Rid501GuestName = user.Name;
+                                result.Rid501GuestEnabled = enabled;
+                                result.Rid501GuestGroups = guestGroups;
+
                                 Helper.WriteToLog(
                                     string.Format("RID 501 Guest Account  : Name='{0}', Enabled={1}, Groups=[{2}]",
                                         user.Name, enabled, string.Join(", ", guestGroups)),
                                     enabled ? "ERROR" : "OUTPUT");
                                 if (enabled)
                                 {
-                                    Helper.WriteToLog("  [STIG Finding V-63353] Guest account is ENABLED!", "ERROR");
+                                    string finding = "[STIG Finding V-63353] Guest account is ENABLED!";
+                                    result.StigFindings.Add(finding);
+                                    Helper.WriteToLog("  " + finding, "ERROR");
                                 }
                             }
                         }
@@ -152,27 +294,37 @@ namespace PSP_Console
             {
                 Helper.WriteToLog("Failed to evaluate built-in accounts: " + ex.Message, "ERROR");
             }
+            return result;
         }
 
-        private static void EvaluateLocalAccountTokenFilterPolicy()
+        private static TokenFilterPolicyReport EvaluateLocalAccountTokenFilterPolicy()
         {
             Helper.WriteToLog("\n--- [3] LocalAccountTokenFilterPolicy Check ---", "OUTPUT");
             int? policy = SystemStateMonitor.GetLocalAccountTokenFilterPolicy();
+            string assessment;
             if (policy == 1)
             {
-                Helper.WriteToLog("LocalAccountTokenFilterPolicy = 1 (VULNERABLE: Remote UAC administrative token filtering is DISABLED! Local admins can authenticate remotely over SMB/RPC/WinRM.)", "ERROR");
+                assessment = "VULNERABLE: Remote UAC administrative token filtering is DISABLED! Local admins can authenticate remotely over SMB/RPC/WinRM.";
+                Helper.WriteToLog("LocalAccountTokenFilterPolicy = 1 (" + assessment + ")", "ERROR");
             }
             else if (policy.HasValue)
             {
-                Helper.WriteToLog("LocalAccountTokenFilterPolicy = " + policy.Value + " (Protected: Remote UAC token filtering is enforced.)", "OUTPUT");
+                assessment = "Protected: Remote UAC token filtering is enforced.";
+                Helper.WriteToLog("LocalAccountTokenFilterPolicy = " + policy.Value + " (" + assessment + ")", "OUTPUT");
             }
             else
             {
-                Helper.WriteToLog("LocalAccountTokenFilterPolicy = <Not Set> (Default Protected: Remote UAC token filtering is enforced.)", "OUTPUT");
+                assessment = "Default Protected: Remote UAC token filtering is enforced (<Not Set>).";
+                Helper.WriteToLog("LocalAccountTokenFilterPolicy = <Not Set> (" + assessment + ")", "OUTPUT");
             }
+            return new TokenFilterPolicyReport
+            {
+                PolicyValue = policy,
+                Assessment = assessment
+            };
         }
 
-        private static void EvaluateRemoteAccessUsersAndAdminGroups()
+        private static RemoteAccessGroupsReport EvaluateRemoteAccessUsersAndAdminGroups()
         {
             Helper.WriteToLog("\n--- [4] Local Administrators & Remote Access Group Members (Direct & Recursive) ---", "OUTPUT");
 
@@ -203,10 +355,22 @@ namespace PSP_Console
             HashSet<string> allWinRmUsers = new HashSet<string>(adminRecursive, StringComparer.OrdinalIgnoreCase);
             foreach (string u in winRmRecursive) allWinRmUsers.Add(u);
 
-            Helper.WriteToLog(
-                string.Format("SUMMARY: {0} user(s) can access via RDP, {1} user(s) via SMB/RPC/DCOM, and {2} user(s) via WinRM.",
-                    allRdpUsers.Count, allSmbRpcDcomUsers.Count, allWinRmUsers.Count),
-                "OUTPUT");
+            string summary = string.Format("SUMMARY: {0} user(s) can access via RDP, {1} user(s) via SMB/RPC/DCOM, and {2} user(s) via WinRM.",
+                allRdpUsers.Count, allSmbRpcDcomUsers.Count, allWinRmUsers.Count);
+            Helper.WriteToLog(summary, "OUTPUT");
+
+            return new RemoteAccessGroupsReport
+            {
+                LocalAdminsDirect = adminDirect,
+                LocalAdminsRecursive = adminRecursive,
+                RemoteDesktopUsersRecursive = rdpRecursive,
+                DcomUsersRecursive = dcomRecursive,
+                WinRmUsersRecursive = winRmRecursive,
+                TotalRdpAccessUsers = allRdpUsers.Count,
+                TotalSmbRpcDcomAccessUsers = allSmbRpcDcomUsers.Count,
+                TotalWinRmAccessUsers = allWinRmUsers.Count,
+                Summary = summary
+            };
         }
 
         private static List<string> GetGroupMembers(string groupSid, bool recursive)
@@ -214,32 +378,36 @@ namespace PSP_Console
             List<string> members = new List<string>();
             try
             {
-                System.Threading.Tasks.Task task = System.Threading.Tasks.Task.Run(() =>
+                string accountName = new SecurityIdentifier(groupSid).Translate(typeof(NTAccount)).Value;
+                int slashIdx = accountName.IndexOf('\\');
+                string groupName = slashIdx >= 0 ? accountName.Substring(slashIdx + 1) : accountName;
+
+                using (DirectoryEntry groupEntry = new DirectoryEntry("WinNT://./" + groupName + ",group"))
                 {
-                    try
+                    object membersObj = groupEntry.Invoke("Members", null);
+                    foreach (object memberObj in (System.Collections.IEnumerable)membersObj)
                     {
-                        using (PrincipalContext ctx = new PrincipalContext(ContextType.Machine))
-                        using (GroupPrincipal group = GroupPrincipal.FindByIdentity(ctx, IdentityType.Sid, groupSid))
+                        using (DirectoryEntry memberEntry = new DirectoryEntry(memberObj))
                         {
-                            if (group != null)
+                            string name = memberEntry.Name;
+                            string schemaClass = memberEntry.SchemaClassName;
+                            string sidStr = "";
+                            try
                             {
-                                using (PrincipalSearchResult<Principal> searchResult = group.GetMembers(recursive))
+                                byte[] sidBytes = (byte[])memberEntry.Properties["objectSid"].Value;
+                                if (sidBytes != null)
                                 {
-                                    foreach (Principal member in searchResult)
-                                    {
-                                        string sid = member.Sid != null ? member.Sid.Value : "";
-                                        string type = member is GroupPrincipal ? "Group" : "User";
-                                        members.Add(string.Format("{0} [{1}, SID={2}]", member.Name, type, sid));
-                                    }
+                                    sidStr = new SecurityIdentifier(sidBytes, 0).Value;
                                 }
                             }
+                            catch
+                            {
+                            }
+
+                            members.Add(string.Format("{0} [{1}, SID={2}]", name, schemaClass, sidStr));
                         }
                     }
-                    catch
-                    {
-                    }
-                });
-                task.Wait(3000);
+                }
             }
             catch (Exception ex)
             {
@@ -248,10 +416,10 @@ namespace PSP_Console
             return members;
         }
 
-        private static void EvaluateWeirdServices()
+        private static List<WeirdServiceEntry> EvaluateWeirdServices()
         {
             Helper.WriteToLog("\n--- [5] Weird / Suspicious Windows Services Audit ---", "OUTPUT");
-            int weirdCount = 0;
+            List<WeirdServiceEntry> weirdList = new List<WeirdServiceEntry>();
             try
             {
                 using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT Name, DisplayName, PathName, StartName, State, StartMode FROM Win32_Service"))
@@ -274,8 +442,15 @@ namespace PSP_Console
 
                         if ((!isStandardWindows && !isProgramFiles) || isUnquotedWithSpaces)
                         {
-                            weirdCount++;
                             string reason = isUnquotedWithSpaces ? "UNQUOTED PATH WITH SPACES" : "NON-STANDARD BINARY PATH";
+                            weirdList.Add(new WeirdServiceEntry
+                            {
+                                Name = name,
+                                State = state,
+                                RunsAs = startName,
+                                Reason = reason,
+                                PathName = pathName
+                            });
                             Helper.WriteToLog(
                                 string.Format("  [Weird Service] {0} ({1}, RunsAs={2}) [{3}] -> {4}",
                                     name, state, startName, reason, pathName),
@@ -289,15 +464,17 @@ namespace PSP_Console
                 Helper.WriteToLog("Failed to enumerate services: " + ex.Message, "ERROR");
             }
 
-            if (weirdCount == 0)
+            if (weirdList.Count == 0)
             {
                 Helper.WriteToLog("  No weird or unquoted-path services found.", "OUTPUT");
             }
+            return weirdList;
         }
 
-        private static void EvaluateListeningPortsAndServices()
+        private static List<ListeningPortEntry> EvaluateListeningPortsAndServices()
         {
             Helper.WriteToLog("\n--- [6] Programs and Services Listening on TCP Ports ---", "OUTPUT");
+            List<ListeningPortEntry> entries = new List<ListeningPortEntry>();
             try
             {
                 Dictionary<int, List<int>> portsByPid = SystemStateMonitor.GetListeningTcpPortsByPid();
@@ -319,11 +496,20 @@ namespace PSP_Console
                     }
 
                     List<string> svcList;
-                    string svcDisplay = servicesByPid.TryGetValue(pid, out svcList) && svcList.Count > 0
+                    bool hasServices = servicesByPid.TryGetValue(pid, out svcList) && svcList.Count > 0;
+                    string svcDisplay = hasServices
                         ? string.Join(", ", svcList)
                         : "(No associated Windows Service)";
 
                     kvp.Value.Sort();
+                    entries.Add(new ListeningPortEntry
+                    {
+                        ProcessId = pid,
+                        ProcessName = procName,
+                        Ports = new List<int>(kvp.Value),
+                        Services = hasServices ? new List<string>(svcList) : new List<string>()
+                    });
+
                     Helper.WriteToLog(
                         string.Format("  PID {0,-6} | Process: {1,-24} | Ports: {2,-22} | Services: {3}",
                             pid, procName, string.Join(", ", kvp.Value), svcDisplay),
@@ -334,9 +520,10 @@ namespace PSP_Console
             {
                 Helper.WriteToLog("Failed to list listening ports: " + ex.Message, "ERROR");
             }
+            return entries;
         }
 
-        private static void EvaluateAuditSecuritySystemExtension()
+        private static bool EvaluateAuditSecuritySystemExtension()
         {
             Helper.WriteToLog("\n--- [7] Audit Security System Extension Status ---", "OUTPUT");
             bool enabled = AuditPolicyManager.IsSubcategoryEnabled("Security System Extension");
@@ -348,6 +535,7 @@ namespace PSP_Console
             {
                 Helper.WriteToLog("Audit 'Security System Extension' is NOT ENABLED! Run PSP_Console normally or with --test to automatically enable it.", "ERROR");
             }
+            return enabled;
         }
 
         public static void RunLockdownMode(ManualResetEvent stopEvent = null)

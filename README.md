@@ -13,7 +13,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to %Programdata%\PSP_Logs
 - Toast on-click event opens the xml log 
-- `--test` will test about half the events to verify end-to-end functionality 
+- `--test` runs real (non-simulated) end-to-end self-tests (creating real test accounts, performing real network/explicit-credential logons, and installing a real temporary Windows Service) and automatically enables missing Windows Audit Policy subcategories (such as `Security System Extension` via `auditpol.exe`) when events like `4697` are not yet enabled
 - Supported Events:
    - 4624 - Logon Success 
    - 4625 - Logon Failed 
@@ -52,8 +52,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Make better self tests - try not to simulate anything. For example, create a real service to test service detection.
-- After self testing, and finding that some events are not enabled, see if I can't automatiaclly enable them (such as service installed events). Look at  https://github.com/rkovar/PowerShell/blob/master/audit.bat
 - Add seconds to log output
 - Add button to "never show this message again" for common events
 - Include/Display Basic License with EULA 
@@ -69,7 +67,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Alert if FireWall is disabled
 - Alert if FireWall rule has been added so a process can start listening
 - Alert if a service starts listening on a port
-- Automatically enable additional logging such as "(Audit) System Security Extention" to start producing events such as 4697 (Service Installed)
 - Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
 - Add a better sound for the Toast Notification
 - Add icons for the Toast Notification

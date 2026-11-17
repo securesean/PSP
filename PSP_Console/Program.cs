@@ -75,6 +75,10 @@ namespace PSP_Console
 
             ToastHelper.EnsureAlertDirectories();
             ServiceManager.EnsureUserModeNotifierRunning();
+            if (!testMode)
+            {
+                AuditPolicyManager.EnsureRecommendedAuditPolicies();
+            }
 
             eventProcessor = new EventProcessor();
             eventProcessor.TestMode = testMode;
@@ -102,6 +106,7 @@ namespace PSP_Console
 
         public static void RunServiceSubscription(ManualResetEvent stopEvent)
         {
+            AuditPolicyManager.EnsureRecommendedAuditPolicies();
             eventProcessor = new EventProcessor();
             eventProcessor.TestMode = false;
             Helper.WriteToLog("Initializing EventProcessor in Windows Service mode. Starting Security Event Subscription");
@@ -193,7 +198,37 @@ namespace PSP_Console
                         eventProcessor.trigger_process4610_LsassLoadedAuthPackage();
 
                         // Wait for events to roll in
-                        System.Threading.Thread.Sleep(10000);
+                        System.Threading.Thread.Sleep(5000);
+
+                        List<int> missingEventIDs = new List<int>();
+                        foreach (int eventID in supportedEventIDList)
+                        {
+                            if (!eventProcessor.TestTriggeredEventIDs.Contains(eventID))
+                            {
+                                missingEventIDs.Add(eventID);
+                            }
+                        }
+
+                        if (missingEventIDs.Count > 0)
+                        {
+                            Helper.WriteToLog("Detected missing events during self-test. Attempting to automatically enable required Windows Audit Policies...", "OUTPUT");
+                            HashSet<string> enabledPolicies = AuditPolicyManager.EnableAuditPoliciesForEvents(missingEventIDs);
+                            if (enabledPolicies.Count > 0)
+                            {
+                                Helper.WriteToLog("Re-testing previously unsupported events after enabling Audit Policies...", "TEST");
+                                if (missingEventIDs.Contains(4624)) eventProcessor.trigger_process4624_LogonSuccess();
+                                if (missingEventIDs.Contains(4625)) eventProcessor.trigger_process4625_LogonFailed();
+                                if (missingEventIDs.Contains(4648)) eventProcessor.trigger_process4648_UserLogonWithCreds();
+                                if (missingEventIDs.Contains(4697)) eventProcessor.trigger_process4697_ServiceInstalled();
+                                if (missingEventIDs.Contains(4720)) eventProcessor.trigger_process4720_UserCreated();
+                                if (missingEventIDs.Contains(4722)) eventProcessor.trigger_process4722_UserEnabled();
+                                if (missingEventIDs.Contains(4724)) eventProcessor.trigger_process4724_PasswordReset();
+                                if (missingEventIDs.Contains(4726)) eventProcessor.trigger_process4726_UserDeleted();
+                                if (missingEventIDs.Contains(4732)) eventProcessor.trigger_process4732_UserAddedToGroup();
+                                if (missingEventIDs.Contains(4798)) eventProcessor.trigger_process4798_LocalGroupEnum();
+                                System.Threading.Thread.Sleep(5000);
+                            }
+                        }
 
                         foreach (int eventID in supportedEventIDList)
                         {

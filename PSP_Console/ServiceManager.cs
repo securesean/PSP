@@ -200,8 +200,8 @@ namespace PSP_Console
                 {
                     ProcessStartInfo psi = new ProcessStartInfo(notifierPath)
                     {
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
+                        UseShellExecute = true,
+                        WindowStyle = ProcessWindowStyle.Hidden,
                         WorkingDirectory = Path.GetDirectoryName(notifierPath)
                     };
                     Process.Start(psi);

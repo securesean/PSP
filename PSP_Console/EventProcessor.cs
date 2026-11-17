@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.DirectoryServices;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 // I just made this to hold all the Event processing code so everything wouldn't be all in one big .cs file
@@ -204,17 +205,49 @@ namespace PSP_Console
             }
         }
 
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool LogonUser(
+            string lpszUsername,
+            string lpszDomain,
+            string lpszPassword,
+            int dwLogonType,
+            int dwLogonProvider,
+            out IntPtr phToken);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
+
+        private const int LOGON32_LOGON_NETWORK = 3;
+        private const int LOGON32_LOGON_NEW_CREDENTIALS = 9;
+        private const int LOGON32_PROVIDER_DEFAULT = 0;
+        private const int LOGON32_PROVIDER_WINNT50 = 3;
+
+        private static string RunTestProcess(string fileName, string arguments)
+        {
+            try
+            {
+                Process p = new Process();
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.RedirectStandardError = true;
+                p.StartInfo.CreateNoWindow = true;
+                p.StartInfo.FileName = fileName;
+                p.StartInfo.Arguments = arguments;
+                p.Start();
+                string output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+                p.WaitForExit(10000);
+                return output.Trim();
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }
+
         internal void trigger_process1102_SecuritytLogCleared()
         {
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "cl Security";
-            p.StartInfo.FileName = "wevtutil.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Cleared Security Log: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            string output = RunTestProcess("wevtutil.exe", "cl Security");
+            Helper.WriteToLog("Cleared Security Log: " + output, "TEST");
         }
 
         internal void trigger_process4726_UserDeleted()
@@ -224,235 +257,135 @@ namespace PSP_Console
 
         internal void trigger_process4722_UserEnabled()
         {
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "user testUser /add";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            RunTestProcess("net.exe", "user testUser /del");
+            string output = RunTestProcess("net.exe", "user testUser PspTest!23456789 /add /active:no");
+            Helper.WriteToLog("Created disabled user: " + output, "TEST");
 
+            string output2 = RunTestProcess("net.exe", "user testUser /active:yes");
+            Helper.WriteToLog("Activated user: " + output2, "TEST");
 
-            // Enable
-            Process p2 = new Process();
-            p2.StartInfo.UseShellExecute = false;
-            p2.StartInfo.RedirectStandardOutput = true;
-            p2.StartInfo.Arguments = "user testUser /active:yes";
-            p2.StartInfo.FileName = "net.exe";
-            p2.Start();
-            string output2 = p2.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Activate User: " + output2.Trim(), "TEST");
-            //p2.WaitForExit();
-
-            // Clean up
-            Process p3 = new Process();
-            p3.StartInfo.UseShellExecute = false;
-            p3.StartInfo.RedirectStandardOutput = true;
-            p3.StartInfo.Arguments = "user testUser /del";
-            p3.StartInfo.FileName = "net.exe";
-            p3.Start();
-            string output3 = p3.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
-            //p2.WaitForExit();
+            string output3 = RunTestProcess("net.exe", "user testUser /del");
+            Helper.WriteToLog("Deleted user: " + output3, "TEST");
         }
 
         internal void trigger_process4648_UserLogonWithCreds()
         {
-            
+            RunTestProcess("net.exe", "user testUser /del");
+            RunTestProcess("net.exe", "user testUser PspTest!23456789 /add /active:yes");
+
+            string output = RunTestProcess("net.exe", @"use \\127.0.0.1\IPC$ PspTest!23456789 /user:" + Environment.MachineName + @"\testUser");
+            Helper.WriteToLog("Explicit credential IPC$ logon: " + output, "TEST");
+            RunTestProcess("net.exe", @"use \\127.0.0.1\IPC$ /del /y");
+
+            IntPtr token;
+            if (LogonUser("testUser", Environment.MachineName, "PspTest!23456789", LOGON32_LOGON_NEW_CREDENTIALS, LOGON32_PROVIDER_WINNT50, out token))
+            {
+                CloseHandle(token);
+            }
+
+            RunTestProcess("net.exe", "user testUser /del");
         }
 
         internal void trigger_process4724_PasswordReset()
         {
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "user testUser /add";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            RunTestProcess("net.exe", "user testUser /del");
+            string output = RunTestProcess("net.exe", "user testUser /add");
+            Helper.WriteToLog("Created user: " + output, "TEST");
 
+            string output2 = RunTestProcess("net.exe", "user testUser Password123!Reset");
+            Helper.WriteToLog("User Password was set: " + output2, "TEST");
 
-            // Enable
-            Process p2 = new Process();
-            p2.StartInfo.UseShellExecute = false;
-            p2.StartInfo.RedirectStandardOutput = true;
-            p2.StartInfo.Arguments = "user testUser Password123Password123";
-            p2.StartInfo.FileName = "net.exe";
-            p2.Start();
-            string output2 = p2.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("User Password was set: " + output2.Trim(), "TEST");
-            //p2.WaitForExit();
-
-            // Clean up
-            Process p3 = new Process();
-            p3.StartInfo.UseShellExecute = false;
-            p3.StartInfo.RedirectStandardOutput = true;
-            p3.StartInfo.Arguments = "user testUser /del";
-            p3.StartInfo.FileName = "net.exe";
-            p3.Start();
-            string output3 = p3.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
-            //p2.WaitForExit();
+            string output3 = RunTestProcess("net.exe", "user testUser /del");
+            Helper.WriteToLog("Deleted User: " + output3, "TEST");
         }
 
         internal void trigger_process4697_ServiceInstalled()
         {
-            // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "create aService start= delayed-auto binpath= C:\\a.exe";
-            p.StartInfo.FileName = "sc.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Installing Service: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            RunTestProcess("sc.exe", "delete PSPTestService");
+            string output = RunTestProcess("sc.exe", "create PSPTestService start= demand binpath= \"C:\\Windows\\System32\\cmd.exe /c exit\"");
+            Helper.WriteToLog("Installing real test Service (PSPTestService): " + output, "TEST");
 
-
-            // Clean up
-            Process p2 = new Process();
-            p2.StartInfo.UseShellExecute = false;
-            p2.StartInfo.RedirectStandardOutput = true;
-            p2.StartInfo.Arguments = "delete aService";
-            p2.StartInfo.FileName = "sc.exe";
-            p2.Start();
-            string output2 = p2.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Installing Service: " + output2.Trim(), "TEST");
-            //p2.WaitForExit();
+            string output2 = RunTestProcess("sc.exe", "delete PSPTestService");
+            Helper.WriteToLog("Deleting test Service (PSPTestService): " + output2, "TEST");
         }
 
         internal void trigger_process4614_NotifcationPackageLoaded()
         {
-            
         }
 
         internal void trigger_process4610_LsassLoadedAuthPackage()
         {
-            
         }
 
         internal void trigger_process4611_LsassLogon()
         {
-            
         }
 
         internal void trigger_process4622_LsassLoadedPackage()
         {
-            
         }
 
-        // ToDo: Clean all this up - make a CreateUser()
         internal void trigger_process4732_UserAddedToGroup()
         {
-            // create user
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "user testUser /add";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            RunTestProcess("net.exe", "user testUser /del");
+            RunTestProcess("net.exe", "localgroup tempgroup5 /del");
 
-            // create group
-            p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "localgroup tempgroup5 /add";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            string output = RunTestProcess("net.exe", "user testUser /add");
+            Helper.WriteToLog("Created user: " + output, "TEST");
 
-            // add user to group
-            p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "localgroup tempgroup5 testUser /add";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            output = RunTestProcess("net.exe", "localgroup tempgroup5 /add");
+            Helper.WriteToLog("Created group: " + output, "TEST");
 
+            output = RunTestProcess("net.exe", "localgroup tempgroup5 testUser /add");
+            Helper.WriteToLog("Added user to group: " + output, "TEST");
 
-            // delete group
-            p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "localgroup tempgroup5 /del";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            output = RunTestProcess("net.exe", "localgroup tempgroup5 /del");
+            Helper.WriteToLog("Deleted group: " + output, "TEST");
 
-
-            // Clean up
-            Process p2 = new Process();
-            p2.StartInfo.UseShellExecute = false;
-            p2.StartInfo.RedirectStandardOutput = true;
-            p2.StartInfo.Arguments = "user testUser /del";
-            p2.StartInfo.FileName = "net.exe";
-            p2.Start();
-            string output2 = p2.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
+            string output2 = RunTestProcess("net.exe", "user testUser /del");
+            Helper.WriteToLog("Deleted User: " + output2, "TEST");
         }
 
         internal void trigger_process4720_UserCreated()
         {
-            // create user
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "user testUser /add";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Created user: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            RunTestProcess("net.exe", "user testUser /del");
+            string output = RunTestProcess("net.exe", "user testUser /add");
+            Helper.WriteToLog("Created user: " + output, "TEST");
 
-
-            // Clean up
-            Process p2 = new Process();
-            p2.StartInfo.UseShellExecute = false;
-            p2.StartInfo.RedirectStandardOutput = true;
-            p2.StartInfo.Arguments = "user testUser /del";
-            p2.StartInfo.FileName = "net.exe";
-            p2.Start();
-            string output2 = p2.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Deleted User: " + output2.Trim(), "TEST");
-            //p2.WaitForExit();
+            string output2 = RunTestProcess("net.exe", "user testUser /del");
+            Helper.WriteToLog("Deleted User: " + output2, "TEST");
         }
 
         internal void trigger_process4798_LocalGroupEnum()
         {
-            // Test with: sc.exe create aService3 start= delayed-auto binpath= C:\a.exe
-            Process p = new Process();
-            p.StartInfo.UseShellExecute = false;
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.Arguments = "localgroup Administrators";
-            p.StartInfo.FileName = "net.exe";
-            p.Start();
-            string output = p.StandardOutput.ReadToEnd();
-            Helper.WriteToLog("Enumerating localgroup: " + output.Trim(), "TEST");
-            //p.WaitForExit();
+            string output = RunTestProcess("net.exe", "localgroup Administrators");
+            Helper.WriteToLog("Enumerating localgroup: " + output, "TEST");
         }
 
         internal void trigger_process4625_LogonFailed()
         {
-            
+            IntPtr token;
+            LogonUser("PSPNonExistentOrBadPassUser", Environment.MachineName, "WrongPassword_4625!", LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT, out token);
+            if (token != IntPtr.Zero)
+            {
+                CloseHandle(token);
+            }
+            Helper.WriteToLog("Triggered real network Logon Failed (4625) via LogonUser", "TEST");
         }
 
         internal void trigger_process4624_LogonSuccess()
         {
-            
+            RunTestProcess("net.exe", "user testUser /del");
+            RunTestProcess("net.exe", "user testUser PspTest!23456789 /add /active:yes");
+
+            IntPtr token;
+            if (LogonUser("testUser", Environment.MachineName, "PspTest!23456789", LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT, out token))
+            {
+                CloseHandle(token);
+                Helper.WriteToLog("Triggered real network Logon Success (4624) via LogonUser", "TEST");
+            }
+
+            RunTestProcess("net.exe", "user testUser /del");
         }
 
         

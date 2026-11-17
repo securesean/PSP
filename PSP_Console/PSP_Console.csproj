@@ -58,6 +58,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AuditPolicyManager.cs" />
     <Compile Include="EventProcessor.cs" />
     <Compile Include="Group.cs" />
     <Compile Include="Helper.cs" />

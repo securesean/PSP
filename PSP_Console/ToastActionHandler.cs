@@ -265,11 +265,176 @@ namespace PSP_Console
                 {
                     LaunchOrDownloadAutoruns();
                 }
+                else if (string.Equals(action, "kill_process", StringComparison.OrdinalIgnoreCase))
+                {
+                    string pidStr = parameters.ContainsKey("pid") ? parameters["pid"] : "";
+                    string procPath = parameters.ContainsKey("path") ? parameters["path"] : "";
+                    KillProcessNative(pidStr, procPath);
+                }
+                else if (string.Equals(action, "disconnect_network", StringComparison.OrdinalIgnoreCase))
+                {
+                    DisconnectAllNetworksNative();
+                }
             }
             catch (Exception ex)
             {
                 Helper.LogCrash("ToastActionHandler.ExecuteAction (" + action + ")", ex);
             }
+        }
+
+        public static void KillProcessNative(string pidStr, string processPath)
+        {
+            string targetDesc = !string.IsNullOrEmpty(processPath) ? Path.GetFileName(processPath) : ("PID " + pidStr);
+            string outcomeMsg = "";
+            bool killed = false;
+
+            try
+            {
+                int pid = 0;
+                if (!string.IsNullOrEmpty(pidStr))
+                {
+                    string trimmed = pidStr.Trim();
+                    if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int.TryParse(trimmed.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out pid);
+                    }
+                    else
+                    {
+                        int.TryParse(trimmed, out pid);
+                    }
+                }
+
+                if (pid > 0)
+                {
+                    try
+                    {
+                        using (Process proc = Process.GetProcessById(pid))
+                        {
+                            string procName = proc.ProcessName;
+                            proc.Kill();
+                            proc.WaitForExit(5000);
+                            killed = true;
+                            outcomeMsg = string.Format("Terminated process '{0}' (PID {1}).", procName, pid);
+                        }
+                    }
+                    catch (ArgumentException)
+                    {
+                        outcomeMsg = string.Format("PID {0} already exited.", pid);
+                    }
+                }
+
+                if (!killed && !string.IsNullOrEmpty(processPath))
+                {
+                    string baseName = Path.GetFileNameWithoutExtension(processPath);
+                    if (!string.IsNullOrEmpty(baseName))
+                    {
+                        Process[] matching = Process.GetProcessesByName(baseName);
+                        int count = 0;
+                        foreach (Process p in matching)
+                        {
+                            try
+                            {
+                                p.Kill();
+                                count++;
+                            }
+                            catch
+                            {
+                            }
+                            finally
+                            {
+                                p.Dispose();
+                            }
+                        }
+                        if (count > 0)
+                        {
+                            killed = true;
+                            outcomeMsg = string.Format("Terminated {0} instance(s) of '{1}.exe'.", count, baseName);
+                        }
+                        else if (string.IsNullOrEmpty(outcomeMsg))
+                        {
+                            outcomeMsg = string.Format("No running process found for '{0}'.", targetDesc);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                outcomeMsg = "Error terminating process: " + ex.Message;
+            }
+
+            string title = killed ? "Process Terminated: " + targetDesc : "Kill Process Outcome: " + targetDesc;
+            Helper.WriteToLog(title + " | " + outcomeMsg, killed ? "OUTPUT" : "ERROR");
+
+            ToastHelper.ShowToast(
+                0,
+                DateTime.UtcNow.Ticks.ToString(),
+                new List<string> { title, outcomeMsg },
+                new List<ToastButtonItem>
+                {
+                    new ToastButtonItem
+                    {
+                        Content = "Don't show",
+                        Arguments = "action=suppress&signature=" + Uri.EscapeDataString(title) + "&eventId=0",
+                        IconUri = File.Exists(MuteIconPath) ? new Uri(MuteIconPath).AbsoluteUri : null
+                    }
+                });
+        }
+
+        public static void DisconnectAllNetworksNative()
+        {
+            int disabledAdapters = 0;
+            List<string> adapterNames = new List<string>();
+            string errorMsg = null;
+
+            try
+            {
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter WHERE NetEnabled = true"))
+                using (ManagementObjectCollection results = searcher.Get())
+                {
+                    foreach (ManagementObject adapter in results)
+                    {
+                        try
+                        {
+                            string name = Convert.ToString(adapter["Name"]) ?? "Adapter";
+                            adapter.InvokeMethod("Disable", null);
+                            disabledAdapters++;
+                            adapterNames.Add(name);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+
+                // Also disconnect Wi-Fi and release DHCP leases as fallback
+                RunCmd("netsh.exe", "wlan disconnect");
+                RunCmd("ipconfig.exe", "/release");
+            }
+            catch (Exception ex)
+            {
+                errorMsg = ex.Message;
+            }
+
+            string title = "Network Emergency Disconnect Executed";
+            string details = disabledAdapters > 0
+                ? string.Format("Disabled {0} network adapter(s): {1}", disabledAdapters, string.Join(", ", adapterNames))
+                : (!string.IsNullOrEmpty(errorMsg) ? "Disconnect error: " + errorMsg : "Disconnected WLAN & released IP leases.");
+
+            Helper.WriteToLog(title + " | " + details, "OUTPUT");
+
+            ToastHelper.ShowToast(
+                0,
+                DateTime.UtcNow.Ticks.ToString(),
+                new List<string> { title, details },
+                new List<ToastButtonItem>
+                {
+                    new ToastButtonItem
+                    {
+                        Content = "Don't show",
+                        Arguments = "action=suppress&signature=" + Uri.EscapeDataString(title) + "&eventId=0",
+                        IconUri = File.Exists(MuteIconPath) ? new Uri(MuteIconPath).AbsoluteUri : null
+                    }
+                });
         }
 
         public static void StopAndDisableServiceNative(string serviceIdentifier)

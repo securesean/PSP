@@ -342,13 +342,15 @@ namespace PSP_Console
                         string subjectUser = "";
                         string objectName = "";
                         string processName = "";
+                        string processId = "";
                         try
                         {
                             string[] xPaths = new[]
                             {
                                 "Event/EventData/Data[@Name='SubjectUserName']",
                                 "Event/EventData/Data[@Name='ObjectName']",
-                                "Event/EventData/Data[@Name='ProcessName']"
+                                "Event/EventData/Data[@Name='ProcessName']",
+                                "Event/EventData/Data[@Name='ProcessId']"
                             };
                             using (EventLogPropertySelector selector = new EventLogPropertySelector(xPaths))
                             {
@@ -356,6 +358,7 @@ namespace PSP_Console
                                 if (props.Count > 0 && props[0] != null) subjectUser = props[0].ToString();
                                 if (props.Count > 1 && props[1] != null) objectName = props[1].ToString();
                                 if (props.Count > 2 && props[2] != null) processName = props[2].ToString();
+                                if (props.Count > 3 && props[3] != null) processId = props[3].ToString();
                             }
                         }
                         catch
@@ -367,7 +370,7 @@ namespace PSP_Console
                             ? "Canary File / Object Accessed! (" + matchedCanary.Trim('\\') + ")"
                             : "Securable Object Accessed (Event " + id + ")";
 
-                        Helper.WriteToLog(title + " | Object: " + objectName + " | Process: " + processName + " | User: " + subjectUser, "OUTPUT");
+                        Helper.WriteToLog(title + " | Object: " + objectName + " | Process: " + processName + " (PID: " + processId + ") | User: " + subjectUser, "OUTPUT");
 
                         List<string> toastLines = new List<string> { title };
                         if (!string.IsNullOrEmpty(objectName))
@@ -376,10 +379,41 @@ namespace PSP_Console
                         }
                         if (!string.IsNullOrEmpty(processName))
                         {
-                            toastLines.Add("Process: " + processName + " (User: " + subjectUser + ")");
+                            toastLines.Add("Process: " + processName + " (PID: " + processId + ", User: " + subjectUser + ")");
                         }
 
-                        ToastHelper.ShowToast(id, recordId, toastLines);
+                        List<ToastButtonItem> customButtons = null;
+                        if (matchedCanary != null)
+                        {
+                            ToastActionHandler.EnsureIconsGenerated();
+                            customButtons = new List<ToastButtonItem>
+                            {
+                                new ToastButtonItem
+                                {
+                                    Content = "Kill Process",
+                                    Arguments = "action=kill_process&pid=" + Uri.EscapeDataString(processId ?? "") + "&path=" + Uri.EscapeDataString(processName ?? ""),
+                                    IconUri = File.Exists(ToastActionHandler.KillServiceIconPath) ? new Uri(ToastActionHandler.KillServiceIconPath).AbsoluteUri : null
+                                },
+                                new ToastButtonItem
+                                {
+                                    Content = "Disconnect Network",
+                                    Arguments = "action=disconnect_network",
+                                    IconUri = File.Exists(ToastActionHandler.BlockIpIconPath) ? new Uri(ToastActionHandler.BlockIpIconPath).AbsoluteUri : null
+                                }
+                            };
+
+                            if (!string.IsNullOrEmpty(processName))
+                            {
+                                customButtons.Add(new ToastButtonItem
+                                {
+                                    Content = "VT",
+                                    Arguments = "action=check_vt&path=" + Uri.EscapeDataString(processName),
+                                    IconUri = File.Exists(ToastActionHandler.CheckVtIconPath) ? new Uri(ToastActionHandler.CheckVtIconPath).AbsoluteUri : null
+                                });
+                            }
+                        }
+
+                        ToastHelper.ShowToast(id, recordId, toastLines, customButtons);
                     }
                 }
                 else if (id == 4688)

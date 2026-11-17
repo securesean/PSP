@@ -109,13 +109,31 @@ namespace PSP_Console
             }
         }
 
-        // Inspired by https://github.com/OTRF/Set-AuditRule - configures SACL on HKLM\SOFTWARE\PSP_Canary
-        // and enables Object Access Registry auditing so accessing sensitive securable objects generates Event 4656/4663
+        public static readonly List<string> DeployedCanaryFilePaths = new List<string>();
+
+        private static readonly string[] CanaryIndicators = new[]
+        {
+            "PSP_Canary",
+            @"\Bitcoin\wallet.dat",
+            @"\Ethereum\keystore\",
+            @"\Electrum\wallets\",
+            @"\Exodus\exodus.wallet\",
+            @"\atomic\Local Storage\leveldb\",
+            @"\Coinomi\Coinomi\wallets\",
+            @"\Monero\wallets\",
+            @"\Vivaldi\User Data\",
+            @"\Helium\User Data\"
+        };
+
+        // Inspired by https://github.com/OTRF/Set-AuditRule - configures SACL on HKLM\SOFTWARE\PSP_Canary,
+        // common cryptocurrency wallet canary files, and Vivaldi / Helium browser cookie files
+        // and enables Object Access auditing so accessing them generates Event 4656/4663
         private static void ConfigureCanarySecurableObjectAuditRule()
         {
             try
             {
                 AuditPolicyManager.EnableSubcategory("Registry", true, true);
+                AuditPolicyManager.EnableSubcategory("File System", true, true);
                 AuditPolicyManager.EnableSubcategory("SAM", true, true);
 
                 using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\PSP_Canary"))
@@ -133,6 +151,118 @@ namespace PSP_Console
                         security.AddAuditRule(auditRule);
                         key.SetAccessControl(security);
                     }
+                }
+
+                DeployUserCanaryFilesAndAuditRules();
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Failed to configure canary audit rules: " + ex.Message, "ERROR");
+            }
+        }
+
+        private static void DeployUserCanaryFilesAndAuditRules()
+        {
+            string usersRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), @"..\Users");
+            try
+            {
+                usersRoot = Path.GetFullPath(usersRoot);
+            }
+            catch
+            {
+                usersRoot = @"C:\Users";
+            }
+
+            if (!Directory.Exists(usersRoot))
+            {
+                return;
+            }
+
+            string[] excludedProfiles = new[] { "Public", "Default", "Default User", "All Users" };
+
+            foreach (string userDir in Directory.GetDirectories(usersRoot))
+            {
+                string folderName = Path.GetFileName(userDir);
+                bool skip = false;
+                foreach (string excl in excludedProfiles)
+                {
+                    if (string.Equals(folderName, excl, StringComparison.OrdinalIgnoreCase))
+                    {
+                        skip = true;
+                        break;
+                    }
+                }
+                if (skip) continue;
+
+                string roaming = Path.Combine(userDir, "AppData", "Roaming");
+                string local = Path.Combine(userDir, "AppData", "Local");
+                string documents = Path.Combine(userDir, "Documents");
+
+                if (!Directory.Exists(roaming) && !Directory.Exists(local))
+                {
+                    continue;
+                }
+
+                string[] canaryFiles = new[]
+                {
+                    // Common Cryptocurrency Wallet Canary Files
+                    Path.Combine(roaming, "Bitcoin", "wallet.dat"),
+                    Path.Combine(roaming, "Ethereum", "keystore", "UTC--2026-01-01T00-00-00.000Z--0000000000000000000000000000000000000000"),
+                    Path.Combine(roaming, "Electrum", "wallets", "default_wallet"),
+                    Path.Combine(roaming, "Exodus", "exodus.wallet", "seed.seco"),
+                    Path.Combine(roaming, "Exodus", "exodus.wallet", "passphrase.json"),
+                    Path.Combine(roaming, "atomic", "Local Storage", "leveldb", "000001.ldb"),
+                    Path.Combine(local, "Coinomi", "Coinomi", "wallets", "default.wallet"),
+                    Path.Combine(documents, "Monero", "wallets", "default", "default.keys"),
+
+                    // Vivaldi Browser Cookie Files
+                    Path.Combine(local, "Vivaldi", "User Data", "Default", "Network", "Cookies"),
+                    Path.Combine(local, "Vivaldi", "User Data", "Default", "Cookies"),
+
+                    // Helium Browser Cookie Files
+                    Path.Combine(local, "Helium", "User Data", "Default", "Network", "Cookies"),
+                    Path.Combine(local, "Helium", "User Data", "Default", "Cookies")
+                };
+
+                foreach (string filePath in canaryFiles)
+                {
+                    CreateAndAuditCanaryFile(filePath);
+                }
+            }
+        }
+
+        private static void CreateAndAuditCanaryFile(string filePath)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(filePath);
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (!File.Exists(filePath))
+                {
+                    string dummyContent = filePath.EndsWith("Cookies", StringComparison.OrdinalIgnoreCase)
+                        ? "SQLite format 3\0PSP_CANARY_COOKIE_DB"
+                        : "{\"psp_canary\":true,\"type\":\"wallet_canary\",\"warning\":\"Unauthorized access monitored by PSP\"}";
+                    File.WriteAllText(filePath, dummyContent);
+                }
+
+                FileSecurity fileSecurity = File.GetAccessControl(filePath);
+                SecurityIdentifier everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                FileSystemAuditRule auditRule = new FileSystemAuditRule(
+                    everyone,
+                    FileSystemRights.ReadData | FileSystemRights.Write | FileSystemRights.Delete | FileSystemRights.ReadAttributes,
+                    InheritanceFlags.None,
+                    PropagationFlags.None,
+                    AuditFlags.Success | AuditFlags.Failure);
+                fileSecurity.AddAuditRule(auditRule);
+                File.SetAccessControl(filePath, fileSecurity);
+
+                if (!DeployedCanaryFilePaths.Contains(filePath))
+                {
+                    DeployedCanaryFilePaths.Add(filePath);
                 }
             }
             catch
@@ -186,26 +316,70 @@ namespace PSP_Console
 
                 if (id == 4656 || id == 4663)
                 {
-                    // Securable Object Access: alert on PSP_Canary, SAM, LSASS, or sensitive registry/files
-                    if (xml.IndexOf("PSP_Canary", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    string matchedCanary = null;
+                    foreach (string indicator in CanaryIndicators)
+                    {
+                        if (xml.IndexOf(indicator, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            matchedCanary = indicator;
+                            break;
+                        }
+                    }
+
+                    // Securable Object Access: alert on Crypto Wallet / Vivaldi / Helium canary files, PSP_Canary, SAM, or LSASS
+                    if (matchedCanary != null ||
                         xml.IndexOf(@"\SAM", StringComparison.OrdinalIgnoreCase) >= 0 ||
                         xml.IndexOf("lsass.exe", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        if (xml.IndexOf("PSP_Console.exe", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (xml.IndexOf("PSP_Console.exe", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            xml.IndexOf("MsMpEng.exe", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            xml.IndexOf("SearchIndexer.exe", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            xml.IndexOf("SearchProtocolHost.exe", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             return;
                         }
-                        string recordId = SaveRecordXml(e.EventRecord);
-                        string desc = e.EventRecord.FormatDescription() ?? xml;
-                        Helper.WriteToLog("Securable Object Accessed (Event " + id + "):\n" + desc, "OUTPUT");
-                        ToastHelper.ShowToast(
-                            id,
-                            recordId,
-                            new List<string>
+
+                        string subjectUser = "";
+                        string objectName = "";
+                        string processName = "";
+                        try
+                        {
+                            string[] xPaths = new[]
                             {
-                                "Securable Object Accessed (Event " + id + ")",
-                                "Sensitive object (SAM / LSASS / PSP_Canary) access detected"
-                            });
+                                "Event/EventData/Data[@Name='SubjectUserName']",
+                                "Event/EventData/Data[@Name='ObjectName']",
+                                "Event/EventData/Data[@Name='ProcessName']"
+                            };
+                            using (EventLogPropertySelector selector = new EventLogPropertySelector(xPaths))
+                            {
+                                IList<object> props = ((EventLogRecord)e.EventRecord).GetPropertyValues(selector);
+                                if (props.Count > 0 && props[0] != null) subjectUser = props[0].ToString();
+                                if (props.Count > 1 && props[1] != null) objectName = props[1].ToString();
+                                if (props.Count > 2 && props[2] != null) processName = props[2].ToString();
+                            }
+                        }
+                        catch
+                        {
+                        }
+
+                        string recordId = SaveRecordXml(e.EventRecord);
+                        string title = matchedCanary != null
+                            ? "Canary File / Object Accessed! (" + matchedCanary.Trim('\\') + ")"
+                            : "Securable Object Accessed (Event " + id + ")";
+
+                        Helper.WriteToLog(title + " | Object: " + objectName + " | Process: " + processName + " | User: " + subjectUser, "OUTPUT");
+
+                        List<string> toastLines = new List<string> { title };
+                        if (!string.IsNullOrEmpty(objectName))
+                        {
+                            toastLines.Add("Target: " + objectName);
+                        }
+                        if (!string.IsNullOrEmpty(processName))
+                        {
+                            toastLines.Add("Process: " + processName + " (User: " + subjectUser + ")");
+                        }
+
+                        ToastHelper.ShowToast(id, recordId, toastLines);
                     }
                 }
                 else if (id == 4688)

@@ -37,9 +37,9 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - 4610 - Lsass Loaded Auth Package
    - 4648 - User Logon With Creds
    - 4724 - Password Reset
-   - 4656 / 4663 - Securable Object Accessed (SAM, LSASS, or configured SACL canary keys)
+   - 4656 / 4663 - Securable Object Accessed: automatically deploys and audits SACL canary files for common cryptocurrency wallets (`Bitcoin\wallet.dat`, `Ethereum\keystore`, `Electrum`, `Exodus`, `Atomic`, `Coinomi`, `Monero`) and `Vivaldi` / `Helium` browser `Cookies` databases, as well as `SAM`, `LSASS`, and `HKLM\SOFTWARE\PSP_Canary`
    - 4672 / 4673 / 4674 - Sensitive Privilege Assignment & Use (`SeDebugPrivilege`, `SeLoadDriverPrivilege`, `SeTakeOwnershipPrivilege`)
-   - 4688 - Suspicious Process Creation (DeepBlueCLI / BST command-line indicators)
+   - 4688 - Suspicious Process Creation (TODO: Look at DeepBlueCLI / BST command-line indicators / rundll.exe without arguements, single file executables)
    - 4728 / 4756 - User Added to Global / Universal Security Group
    - System Log: 104 (Log Cleared), 7030 (Interactive Service), 7036 (Security Service Stopped), 7040 (Service Start Type Changed), 7045 (New Service Installed)
    - Application Log: 2, 1033, 1107 (Suspicious installer / application events)

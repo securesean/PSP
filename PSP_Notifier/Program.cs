@@ -51,6 +51,7 @@ namespace PSP_Notifier
         private static readonly string BasePath = Environment.GetEnvironmentVariable("PROGRAMDATA") + "\\PSP_Logs";
         private static readonly string AlertsPath = BasePath + "\\Alerts";
         private static readonly object LogLock = new object();
+        private static readonly ManualResetEvent ActivationFinishedEvent = new ManualResetEvent(false);
 
         static void Main(string[] args)
         {
@@ -60,11 +61,16 @@ namespace PSP_Notifier
             };
 
             bool processOnce = false;
+            bool isToastActivated = ToastNotificationManagerCompat.WasCurrentProcessToastActivated();
             foreach (string arg in args)
             {
                 if (arg.Equals("--process-once", StringComparison.OrdinalIgnoreCase))
                 {
                     processOnce = true;
+                }
+                if (arg.IndexOf("ToastActivated", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    isToastActivated = true;
                 }
             }
 
@@ -80,6 +86,13 @@ namespace PSP_Notifier
             }
 
             ToastNotificationManagerCompat.OnActivated += OnToastActivated;
+
+            if (isToastActivated)
+            {
+                // Wait for the COM OnToastActivated callback to finish before exiting this COM-activated instance
+                ActivationFinishedEvent.WaitOne(15000);
+                return;
+            }
 
             if (processOnce)
             {
@@ -201,6 +214,10 @@ namespace PSP_Notifier
             catch (Exception ex)
             {
                 WriteNotifierLog("Error handling toast activation: " + ex.Message);
+            }
+            finally
+            {
+                ActivationFinishedEvent.Set();
             }
         }
 

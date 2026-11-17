@@ -364,12 +364,11 @@ namespace PSP_Console
                     if (IsServiceRunning(svc))
                     {
                         Helper.WriteToLog("Lockdown: Stopping service '" + svc + "'...", "OUTPUT");
-                        Process p = Process.Start(new ProcessStartInfo("sc.exe", "stop " + svc)
+                        using (ServiceController sc = new ServiceController(svc))
                         {
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        });
-                        if (p != null) p.WaitForExit(5000);
+                            sc.Stop();
+                            sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(5));
+                        }
                     }
                 }
                 catch (Exception ex)

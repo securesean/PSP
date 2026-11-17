@@ -6,10 +6,13 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.IO.Compression;
+using System.Management;
 using System.Net;
 using System.Security.Cryptography;
+using System.ServiceProcess;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Win32;
 
 namespace PSP_Console
 {
@@ -210,9 +213,7 @@ namespace PSP_Console
                 else if (string.Equals(action, "kill_service", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("service"))
                 {
                     string service = parameters["service"];
-                    RunCmd("sc.exe", "stop \"" + service + "\"");
-                    RunCmd("sc.exe", "config \"" + service + "\" start= disabled");
-                    Helper.WriteToLog("Toast Action Executed: Stopped and disabled service '" + service + "'.", "OUTPUT");
+                    StopAndDisableServiceNative(service);
                 }
                 else if (string.Equals(action, "check_vt", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("path"))
                 {
@@ -222,6 +223,14 @@ namespace PSP_Console
                         string sha256 = ComputeSha256(filePath);
                         string vtUrl = "https://www.virustotal.com/gui/file/" + sha256;
                         Helper.WriteToLog("Toast Action Executed: Computed SHA-256 for " + filePath + " = " + sha256 + " -> " + vtUrl, "OUTPUT");
+                        // Open the VT URL in the default browser
+                        Process.Start(new ProcessStartInfo(vtUrl) { UseShellExecute = true });
+
+                        // copy file to desktop for upload to VT if user wants to do manual upload, then notify user
+                        string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                        string destPath = Path.Combine(desktopPath, Path.GetFileName(filePath));
+                        File.Copy(filePath, destPath, true);
+                        Helper.WriteToLog("Copied file to Desktop for manual upload to VT: " + destPath, "OUTPUT");
                     } else
                     {
                         Helper.WriteToLog("Toast Action Executed: File not found for VT check: " + filePath, "ERROR");
@@ -248,6 +257,133 @@ namespace PSP_Console
             {
                 Helper.LogCrash("ToastActionHandler.ExecuteAction (" + action + ")", ex);
             }
+        }
+
+        public static void StopAndDisableServiceNative(string serviceIdentifier)
+        {
+            string resolvedName = serviceIdentifier != null ? serviceIdentifier.Trim() : "";
+            string stopResult = "Not attempted";
+            string disableResult = "Not attempted";
+            bool overallSuccess = false;
+
+            try
+            {
+                if (string.IsNullOrEmpty(resolvedName))
+                {
+                    throw new ArgumentException("Service name was empty.");
+                }
+
+                // 1. Locate service by ServiceName or DisplayName via native ServiceController
+                ServiceController targetService = null;
+                foreach (ServiceController sc in ServiceController.GetServices())
+                {
+                    if (string.Equals(sc.ServiceName, resolvedName, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(sc.DisplayName, resolvedName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetService = sc;
+                        resolvedName = sc.ServiceName;
+                        break;
+                    }
+                }
+
+                if (targetService == null)
+                {
+                    stopResult = "Service not found";
+                    disableResult = "Service not found";
+                    Helper.WriteToLog("StopAndDisableServiceNative: Service '" + serviceIdentifier + "' was not found.", "ERROR");
+                }
+                else
+                {
+                    using (targetService)
+                    {
+                        // 2. Stop the service using ServiceController
+                        try
+                        {
+                            targetService.Refresh();
+                            if (targetService.Status == ServiceControllerStatus.Stopped)
+                            {
+                                stopResult = "Already Stopped";
+                            }
+                            else
+                            {
+                                if (targetService.Status != ServiceControllerStatus.StopPending)
+                                {
+                                    targetService.Stop();
+                                }
+                                targetService.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(15));
+                                stopResult = "Stopped (" + targetService.Status + ")";
+                            }
+                        }
+                        catch (Exception stopEx)
+                        {
+                            stopResult = "Stop failed: " + stopEx.Message;
+                            Helper.WriteToLog("Failed to stop service '" + resolvedName + "': " + stopEx.Message, "ERROR");
+                        }
+
+                        // 3. Disable the service using native WMI (Win32_Service.ChangeStartMode) and Registry fallback
+                        try
+                        {
+                            uint wmiReturn = 1;
+                            using (ManagementObject wmiService = new ManagementObject("Win32_Service.Name='" + resolvedName.Replace("'", "\\'") + "'"))
+                            {
+                                wmiService.Get();
+                                object resultObj = wmiService.InvokeMethod("ChangeStartMode", new object[] { "Disabled" });
+                                if (resultObj != null)
+                                {
+                                    wmiReturn = Convert.ToUInt32(resultObj);
+                                }
+                            }
+
+                            using (RegistryKey svcKey = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\" + resolvedName, true))
+                            {
+                                if (svcKey != null)
+                                {
+                                    svcKey.SetValue("Start", 4, RegistryValueKind.DWord); // 4 = SERVICE_DISABLED
+                                }
+                            }
+
+                            disableResult = wmiReturn == 0 ? "Disabled" : "Disabled via Registry (WMI code " + wmiReturn + ")";
+                            overallSuccess = stopResult.StartsWith("Stopped", StringComparison.OrdinalIgnoreCase) ||
+                                             stopResult.StartsWith("Already Stopped", StringComparison.OrdinalIgnoreCase);
+                        }
+                        catch (Exception disableEx)
+                        {
+                            disableResult = "Disable failed: " + disableEx.Message;
+                            Helper.WriteToLog("Failed to disable service '" + resolvedName + "': " + disableEx.Message, "ERROR");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                stopResult = "Error: " + ex.Message;
+                Helper.WriteToLog("Exception in StopAndDisableServiceNative('" + serviceIdentifier + "'): " + ex.Message, "ERROR");
+            }
+
+            string title = overallSuccess
+                ? "Service Stopped & Disabled: " + resolvedName
+                : "Kill Service Outcome: " + resolvedName;
+
+            Helper.WriteToLog(title + " | Stop: " + stopResult + " | Startup: " + disableResult, overallSuccess ? "OUTPUT" : "ERROR");
+
+            ToastHelper.ShowToast(
+                0,
+                DateTime.UtcNow.Ticks.ToString(),
+                new List<string>
+                {
+                    title,
+                    "Stop Status: " + stopResult,
+                    "Startup Mode: " + disableResult
+                },
+                new List<ToastButtonItem>
+                {
+                    new ToastButtonItem
+                    {
+                        Content = "Don't show",
+                        Arguments = "action=suppress&signature=" + Uri.EscapeDataString(title) + "&eventId=0",
+                        IconUri = File.Exists(MuteIconPath) ? new Uri(MuteIconPath).AbsoluteUri : null
+                    }
+                });
         }
 
         public static string ComputeSha256(string filePath)

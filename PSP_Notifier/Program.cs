@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -138,6 +139,28 @@ namespace PSP_Notifier
                         string suppressedFile = Path.Combine(BasePath, "suppressed_alerts.txt");
                         File.AppendAllText(suppressedFile, sig + Environment.NewLine, Encoding.UTF8);
                         WriteNotifierLog("Suppressed future alerts matching signature: " + sig);
+                    }
+                    else if (parsed["action"].Equals("check_vt", StringComparison.OrdinalIgnoreCase) && parsed.Contains("path"))
+                    {
+                        string filePath = Uri.UnescapeDataString(parsed["path"]).Trim('"');
+                        if (File.Exists(filePath))
+                        {
+                            string sha256 = ComputeSha256(filePath);
+                            string vtUrl = "https://www.virustotal.com/gui/file/" + sha256;
+                            Process.Start(new ProcessStartInfo(vtUrl) { UseShellExecute = true });
+                            string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                            string destPath = Path.Combine(desktopPath, Path.GetFileName(filePath));
+                            try { File.Copy(filePath, destPath, true); } catch { }
+                            WriteNotifierLog("Opened VirusTotal in user session for " + filePath + " (" + sha256 + ")");
+                        }
+                    }
+                    else if (parsed["action"].Equals("autoruns", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string autorunsExe = Path.Combine(BasePath, "Tools", "Autoruns", Environment.Is64BitOperatingSystem ? "Autoruns64.exe" : "Autoruns.exe");
+                        if (File.Exists(autorunsExe))
+                        {
+                            Process.Start(new ProcessStartInfo(autorunsExe) { UseShellExecute = true });
+                        }
                     }
                 }
 
@@ -294,6 +317,21 @@ namespace PSP_Notifier
             catch (Exception ex)
             {
                 WriteNotifierLog("Failed to display toast notification: " + ex.Message);
+            }
+        }
+
+        private static string ComputeSha256(string filePath)
+        {
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (SHA256 sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(fs);
+                StringBuilder sb = new StringBuilder(hash.Length * 2);
+                foreach (byte b in hash)
+                {
+                    sb.Append(b.ToString("x2"));
+                }
+                return sb.ToString();
             }
         }
 

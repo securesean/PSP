@@ -268,6 +268,7 @@ namespace PSP_Console
             string[] parts = argString.Split('&');
             string action = "";
             string signature = "";
+            Dictionary<string, string> parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (string part in parts)
             {
                 int idx = part.IndexOf('=');
@@ -275,6 +276,7 @@ namespace PSP_Console
                 {
                     string k = part.Substring(0, idx);
                     string v = Uri.UnescapeDataString(part.Substring(idx + 1));
+                    parameters[k] = v;
                     if (k.Equals("action", StringComparison.OrdinalIgnoreCase)) action = v;
                     if (k.Equals("signature", StringComparison.OrdinalIgnoreCase)) signature = v;
                 }
@@ -283,6 +285,10 @@ namespace PSP_Console
             if (action.Equals("suppress", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(signature))
             {
                 SuppressAlertSignature(signature);
+            }
+            else if (!string.IsNullOrEmpty(action))
+            {
+                ToastActionHandler.ExecuteAction(action, parameters);
             }
         }
 

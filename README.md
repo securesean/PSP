@@ -14,7 +14,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - Listens on common ports (`80`, `443`, `22`) to detect and alert on attempted port scanning / unauthorized connections, and automatically performs reverse DNS hostname resolution and a basic TCP port scan against the connecting host
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to `%ProgramData%\PSP_Logs` (with explicit `yyyy-MM-dd HH:mm:ss` timestamps and dedicated crash/exception diagnostics in `PSP_CrashLog.txt`)
-- Toast on-click event opens the xml log, and Toast notifications include a **"Never show this again"** action button to persistently suppress recurring common alerts (`%ProgramData%\PSP_Logs\suppressed_alerts.txt` / `rules_config.json`)
+- Toast on-click event opens the xml log, and Toast notifications include custom notification sound, app & button icons, a **"Never show this again"** button, and contextual default response actions (**Block IP**, **Kill Service**, **Check VT for Exe**, **Scan YARA / Watch**, **Logoff & Reset Pass**, and **Launch Autoruns**)
 - Includes and displays a Basic License & EULA (`LICENSE.txt` and `--license` / `--eula` flag, plus automatic first-run display)
 - `--test` runs real (non-simulated) end-to-end self-tests (creating real test accounts, performing real network/explicit-credential logons, and installing a real temporary Windows Service) and automatically enables missing Windows Audit Policy subcategories (such as `Security System Extension` via `auditpol.exe`) when events like `4697` are not yet enabled
 - Supported Events:
@@ -66,10 +66,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
-- Add a better sound for the Toast Notification
-- Add icons for the Toast Notification
-- Add icons for the Toast Notification buttons - https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
 - Monitor for self-performance - primiarly to monitor for memory leak / memory bloat
 
 ## TODO - Add a "-SecurityEvaluation" option 

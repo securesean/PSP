@@ -1,0 +1,349 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.IO;
+using System.IO.Compression;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace PSP_Console
+{
+    public static class ToastActionHandler
+    {
+        public static readonly string IconsDirectory = Path.Combine(Helper.path, "Icons");
+        public const string DefaultToastSoundUri = "ms-winsoundevent:Notification.Reminder";
+        private static bool _iconsInitialized = false;
+
+        public static string AppLogoPngPath => Path.Combine(IconsDirectory, "psp_logo.png");
+        public static string BlockIpIconPath => Path.Combine(IconsDirectory, "block_ip.png");
+        public static string KillServiceIconPath => Path.Combine(IconsDirectory, "kill_service.png");
+        public static string CheckVtIconPath => Path.Combine(IconsDirectory, "check_vt.png");
+        public static string AutorunsIconPath => Path.Combine(IconsDirectory, "autoruns.png");
+        public static string ResetUserIconPath => Path.Combine(IconsDirectory, "reset_user.png");
+        public static string WatchProcIconPath => Path.Combine(IconsDirectory, "watch_proc.png");
+        public static string MuteIconPath => Path.Combine(IconsDirectory, "mute.png");
+
+        public static void EnsureIconsGenerated()
+        {
+            if (_iconsInitialized && File.Exists(AppLogoPngPath))
+            {
+                return;
+            }
+
+            try
+            {
+                if (!Directory.Exists(IconsDirectory))
+                {
+                    Directory.CreateDirectory(IconsDirectory);
+                }
+
+                // Extract associated application icon to psp_logo.png
+                if (!File.Exists(AppLogoPngPath))
+                {
+                    try
+                    {
+                        string exePath = ServiceManager.GetConsoleExePath();
+                        using (Icon appIcon = Icon.ExtractAssociatedIcon(exePath))
+                        {
+                            if (appIcon != null)
+                            {
+                                using (Bitmap bmp = appIcon.ToBitmap())
+                                {
+                                    bmp.Save(AppLogoPngPath, ImageFormat.Png);
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        GenerateBadgeIcon(AppLogoPngPath, Color.FromArgb(30, 136, 229), "PSP");
+                    }
+                }
+
+                GenerateBadgeIcon(BlockIpIconPath, Color.FromArgb(211, 47, 47), "IP");
+                GenerateBadgeIcon(KillServiceIconPath, Color.FromArgb(198, 40, 40), "SVC");
+                GenerateBadgeIcon(CheckVtIconPath, Color.FromArgb(25, 118, 210), "VT");
+                GenerateBadgeIcon(AutorunsIconPath, Color.FromArgb(0, 121, 107), "AR");
+                GenerateBadgeIcon(ResetUserIconPath, Color.FromArgb(245, 124, 0), "USR");
+                GenerateBadgeIcon(WatchProcIconPath, Color.FromArgb(123, 31, 162), "YARA");
+                GenerateBadgeIcon(MuteIconPath, Color.FromArgb(97, 97, 97), "MUTE");
+
+                _iconsInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Failed to generate toast icons: " + ex.Message, "ERROR");
+            }
+        }
+
+        private static void GenerateBadgeIcon(string filePath, Color bgColor, string label)
+        {
+            if (File.Exists(filePath)) return;
+
+            using (Bitmap bmp = new Bitmap(64, 64))
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.Clear(Color.Transparent);
+                using (Brush brush = new SolidBrush(bgColor))
+                {
+                    g.FillEllipse(brush, 2, 2, 60, 60);
+                }
+                using (Font font = new Font("Segoe UI", label.Length <= 2 ? 18 : 13, FontStyle.Bold, GraphicsUnit.Pixel))
+                using (Brush textBrush = new SolidBrush(Color.White))
+                {
+                    SizeF size = g.MeasureString(label, font);
+                    g.DrawString(label, font, textBrush, (64 - size.Width) / 2f, (64 - size.Height) / 2f);
+                }
+                bmp.Save(filePath, ImageFormat.Png);
+            }
+        }
+
+        public static List<ToastButtonItem> BuildDefaultActionButtons(IList<string> lines, string signature, int eventId)
+        {
+            EnsureIconsGenerated();
+            List<ToastButtonItem> buttons = new List<ToastButtonItem>();
+            string combined = lines != null ? string.Join("\n", lines) : "";
+
+            // 1. If remote IP is in alert, add 'Block IP'
+            Match ipMatch = Regex.Match(combined, @"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b");
+            if (ipMatch.Success && Helper.isRemoteIP(ipMatch.Groups[1].Value))
+            {
+                string ip = ipMatch.Groups[1].Value;
+                buttons.Add(new ToastButtonItem
+                {
+                    Content = "Block IP (" + ip + ")",
+                    Arguments = "action=block_ip&ip=" + Uri.EscapeDataString(ip),
+                    IconUri = new Uri(BlockIpIconPath).AbsoluteUri
+                });
+            }
+
+            // 2. If ServiceName is in alert, add 'Kill Service'
+            Match svcMatch = Regex.Match(combined, @"Service(?:Name)?:\s*([^\r\n(]+)", RegexOptions.IgnoreCase);
+            if (svcMatch.Success)
+            {
+                string svc = svcMatch.Groups[1].Value.Trim();
+                if (!string.IsNullOrEmpty(svc) && buttons.Count < 4)
+                {
+                    buttons.Add(new ToastButtonItem
+                    {
+                        Content = "Kill Service",
+                        Arguments = "action=kill_service&service=" + Uri.EscapeDataString(svc),
+                        IconUri = new Uri(KillServiceIconPath).AbsoluteUri
+                    });
+                }
+            }
+
+            // 3. If executable path is in alert, add 'Check VT for Exe' and 'Scan YARA / Watch'
+            Match exeMatch = Regex.Match(combined, @"([A-Za-z]:\\[^\r\n""']*?\.(?:exe|dll|sys))", RegexOptions.IgnoreCase);
+            if (exeMatch.Success)
+            {
+                string exePath = exeMatch.Groups[1].Value.Trim();
+                if (buttons.Count < 4)
+                {
+                    buttons.Add(new ToastButtonItem
+                    {
+                        Content = "Check VT for Exe",
+                        Arguments = "action=check_vt&path=" + Uri.EscapeDataString(exePath),
+                        IconUri = new Uri(CheckVtIconPath).AbsoluteUri
+                    });
+                }
+                if (buttons.Count < 4)
+                {
+                    buttons.Add(new ToastButtonItem
+                    {
+                        Content = "Scan YARA / Watch",
+                        Arguments = "action=yara_scan&path=" + Uri.EscapeDataString(exePath),
+                        IconUri = new Uri(WatchProcIconPath).AbsoluteUri
+                    });
+                }
+            }
+
+            // 4. If user account is in alert, add 'Log off & Reset Pass'
+            Match userMatch = Regex.Match(combined, @"(?:User:|local user|account:)\s*(?:[^\\\r\n]+\\)?([A-Za-z0-9_\-\.]+)", RegexOptions.IgnoreCase);
+            if (userMatch.Success && buttons.Count < 4)
+            {
+                string targetUser = userMatch.Groups[1].Value.Trim();
+                if (!string.IsNullOrEmpty(targetUser))
+                {
+                    buttons.Add(new ToastButtonItem
+                    {
+                        Content = "Logoff & Reset Pass",
+                        Arguments = "action=reset_user&user=" + Uri.EscapeDataString(targetUser),
+                        IconUri = new Uri(ResetUserIconPath).AbsoluteUri
+                    });
+                }
+            }
+
+            // 5. Add 'Launch Autoruns' if space permits
+            if (buttons.Count < 4)
+            {
+                buttons.Add(new ToastButtonItem
+                {
+                    Content = "Launch Autoruns",
+                    Arguments = "action=autoruns",
+                    IconUri = new Uri(AutorunsIconPath).AbsoluteUri
+                });
+            }
+
+            // 6. Always include 'Never show this again' button (max 5 buttons on Windows Toast)
+            if (!string.IsNullOrEmpty(signature) && buttons.Count < 5)
+            {
+                buttons.Add(new ToastButtonItem
+                {
+                    Content = "Never show this again",
+                    Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature) + "&eventId=" + eventId,
+                    IconUri = new Uri(MuteIconPath).AbsoluteUri
+                });
+            }
+
+            return buttons;
+        }
+
+        public static void ExecuteAction(string action, Dictionary<string, string> parameters)
+        {
+            try
+            {
+                if (string.Equals(action, "block_ip", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("ip"))
+                {
+                    string ip = parameters["ip"];
+                    RunCmd("netsh.exe", "advfirewall firewall add rule name=\"PSP_Blocked_IP_" + ip + "\" dir=in action=block remoteip=" + ip);
+                    RunCmd("netsh.exe", "advfirewall firewall add rule name=\"PSP_Blocked_IP_Out_" + ip + "\" dir=out action=block remoteip=" + ip);
+                    Helper.WriteToLog("Toast Action Executed: Blocked IP " + ip + " in Windows Firewall.", "OUTPUT");
+                }
+                else if (string.Equals(action, "kill_service", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("service"))
+                {
+                    string service = parameters["service"];
+                    RunCmd("sc.exe", "stop \"" + service + "\"");
+                    RunCmd("sc.exe", "config \"" + service + "\" start= disabled");
+                    Helper.WriteToLog("Toast Action Executed: Stopped and disabled service '" + service + "'.", "OUTPUT");
+                }
+                else if (string.Equals(action, "check_vt", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("path"))
+                {
+                    string filePath = parameters["path"];
+                    if (File.Exists(filePath))
+                    {
+                        string sha256 = ComputeSha256(filePath);
+                        string vtUrl = "https://www.virustotal.com/gui/file/" + sha256;
+                        Helper.WriteToLog("Toast Action Executed: Computed SHA-256 for " + filePath + " = " + sha256 + " -> " + vtUrl, "OUTPUT");
+                    }
+                }
+                else if (string.Equals(action, "yara_scan", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("path"))
+                {
+                    string filePath = parameters["path"];
+                    PerformBasicYaraAndProcessWatch(filePath);
+                }
+                else if (string.Equals(action, "reset_user", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("user"))
+                {
+                    string user = parameters["user"];
+                    string newPass = "PspReset!" + Guid.NewGuid().ToString("N").Substring(0, 12);
+                    RunCmd("net.exe", "user \"" + user + "\" \"" + newPass + "\"");
+                    Helper.WriteToLog("Toast Action Executed: Reset password for user '" + user + "'.", "OUTPUT");
+                }
+                else if (string.Equals(action, "autoruns", StringComparison.OrdinalIgnoreCase))
+                {
+                    LaunchOrDownloadAutoruns();
+                }
+            }
+            catch (Exception ex)
+            {
+                Helper.LogCrash("ToastActionHandler.ExecuteAction (" + action + ")", ex);
+            }
+        }
+
+        public static string ComputeSha256(string filePath)
+        {
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (SHA256 sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(fs);
+                StringBuilder sb = new StringBuilder(hash.Length * 2);
+                foreach (byte b in hash)
+                {
+                    sb.Append(b.ToString("x2"));
+                }
+                return sb.ToString();
+            }
+        }
+
+        private static void PerformBasicYaraAndProcessWatch(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                Helper.WriteToLog("YARA Scan target file not found: " + filePath, "ERROR");
+                return;
+            }
+            string content = Encoding.ASCII.GetString(File.ReadAllBytes(filePath));
+            string[] yaraPatterns = new[] { "mimikatz", "sekurlsa", "amsiInitFailed", "VirtualAllocEx", "WriteProcessMemory", "CreateRemoteThread", "ReflectiveLoader", "powershell" };
+            List<string> hits = new List<string>();
+            foreach (string pat in yaraPatterns)
+            {
+                if (content.IndexOf(pat, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    hits.Add(pat);
+                }
+            }
+            Helper.WriteToLog("YARA Signature Scan on '" + filePath + "': " + (hits.Count > 0 ? "MATCHED: " + string.Join(", ", hits) : "No built-in YARA strings matched."), "OUTPUT");
+        }
+
+        public static string LaunchOrDownloadAutoruns()
+        {
+            try
+            {
+                string toolsDir = Path.Combine(Helper.path, "Tools", "Autoruns");
+                if (!Directory.Exists(toolsDir))
+                {
+                    Directory.CreateDirectory(toolsDir);
+                }
+                string zipPath = Path.Combine(toolsDir, "Autoruns.zip");
+                string exePath = Path.Combine(toolsDir, Environment.Is64BitOperatingSystem ? "Autoruns64.exe" : "Autoruns.exe");
+
+                if (!File.Exists(exePath))
+                {
+                    Helper.WriteToLog("Downloading Sysinternals Autoruns from Microsoft...", "OUTPUT");
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                    using (WebClient wc = new WebClient())
+                    {
+                        wc.DownloadFile("https://download.sysinternals.com/files/Autoruns.zip", zipPath);
+                    }
+                    ZipFile.ExtractToDirectory(zipPath, toolsDir);
+                }
+
+                if (File.Exists(exePath))
+                {
+                    Helper.WriteToLog("Autoruns available at: " + exePath, "OUTPUT");
+                    if (Environment.UserInteractive)
+                    {
+                        Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+                    }
+                    return exePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Failed to download/launch Autoruns: " + ex.Message, "ERROR");
+            }
+            return null;
+        }
+
+        private static string RunCmd(string fileName, string args)
+        {
+            Process p = new Process();
+            p.StartInfo.FileName = fileName;
+            p.StartInfo.Arguments = args;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.RedirectStandardError = true;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            string output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+            p.WaitForExit(10000);
+            return output;
+        }
+    }
+}

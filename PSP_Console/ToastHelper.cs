@@ -112,28 +112,13 @@ namespace PSP_Console
                     return;
                 }
 
-                List<ToastButtonItem> finalButtons = buttons != null ? new List<ToastButtonItem>(buttons) : new List<ToastButtonItem>();
-                string signature = RuleEngine.GetAlertSignature(safeLines);
-                if (!string.IsNullOrEmpty(signature))
-                {
-                    bool hasSuppressButton = false;
-                    foreach (ToastButtonItem b in finalButtons)
-                    {
-                        if (b != null && b.Arguments != null && b.Arguments.Contains("action=suppress"))
-                        {
-                            hasSuppressButton = true;
-                            break;
-                        }
-                    }
-                    if (!hasSuppressButton && finalButtons.Count < 5)
-                    {
-                        finalButtons.Add(new ToastButtonItem
-                        {
-                            Content = "Never show this again",
-                            Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature) + "&eventId=" + eventId
-                        });
-                    }
-                }
+                List<ToastButtonItem> finalButtons = buttons != null && buttons.Count > 0
+                    ? new List<ToastButtonItem>(buttons)
+                    : ToastActionHandler.BuildDefaultActionButtons(safeLines, RuleEngine.GetAlertSignature(safeLines), eventId);
+
+                ToastActionHandler.EnsureIconsGenerated();
+                string effectiveLogo = !string.IsNullOrEmpty(appLogoPath) ? appLogoPath : ToastActionHandler.AppLogoPngPath;
+                string effectiveSound = !string.IsNullOrEmpty(audioUri) ? audioUri : ToastActionHandler.DefaultToastSoundUri;
 
                 ToastAlertPayload payload = new ToastAlertPayload
                 {
@@ -141,8 +126,8 @@ namespace PSP_Console
                     EventRecordId = eventRecordId ?? "",
                     Lines = safeLines,
                     Buttons = finalButtons,
-                    AppLogoPath = appLogoPath,
-                    AudioUri = audioUri
+                    AppLogoPath = effectiveLogo,
+                    AudioUri = effectiveSound
                 };
 
                 string tempFile = Path.Combine(AlertsDirectory, "tmp_" + Guid.NewGuid().ToString("N") + ".tmp");

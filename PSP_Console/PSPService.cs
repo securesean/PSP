@@ -34,7 +34,7 @@ namespace PSP_Console
                 }
                 catch (Exception ex)
                 {
-                    Helper.WriteToLog("Fatal exception in PSPService worker thread: " + ex, "ERROR");
+                    Helper.LogCrash("PSPService Worker Thread Crash", ex);
                 }
             });
             _workerThread.IsBackground = true;

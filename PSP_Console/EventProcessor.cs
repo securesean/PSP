@@ -137,13 +137,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -447,13 +451,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -514,13 +522,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -577,13 +589,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -659,13 +675,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -745,13 +765,17 @@ namespace PSP_Console
 
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -845,13 +869,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -966,13 +994,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1032,13 +1064,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1092,13 +1128,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1148,13 +1188,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1208,13 +1252,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1264,13 +1312,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1321,13 +1373,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {
@@ -1447,13 +1503,17 @@ namespace PSP_Console
                     
 
                 }
-                catch (System.ArgumentOutOfRangeException)
+                catch (System.ArgumentOutOfRangeException ex)
                 {
-                    Helper.WriteToLog("Tried to print a vaule outside of pre-prescribed XPath Array", "ERROR");
+                    Helper.LogCrash("XPath Array OutOfRange during Event Parsing", ex);
                 }
-                catch (System.NullReferenceException)
+                catch (System.NullReferenceException ex)
                 {
-                    Helper.WriteToLog("Event Log had an unexpected Null", "ERROR");
+                    Helper.LogCrash("Unexpected NullReference during Event Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event Parsing", ex);
                 }
                 finally
                 {

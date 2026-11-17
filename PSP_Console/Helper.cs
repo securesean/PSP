@@ -16,69 +16,140 @@ namespace PSP_Console
 
         public static string path = System.Environment.GetEnvironmentVariable("PROGRAMDATA") + "\\PSP_Logs";
         public static string filepath = path + "\\PSP_Log_" + DateTime.Now.Date.ToShortDateString().Replace('/', '_') + ".txt";
+        public static string crashFilepath = path + "\\PSP_CrashLog.txt";
         private static readonly object _syncObject = new object();
+
+        public static void RegisterGlobalCrashHandlers(string componentName = "PSP_Console")
+        {
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
+                Exception ex = args.ExceptionObject as Exception;
+                if (ex != null)
+                {
+                    LogCrash(componentName + " UnhandledException (IsTerminating=" + args.IsTerminating + ")", ex);
+                }
+                else
+                {
+                    WriteToLog("[CRASH] " + componentName + " Unhandled non-Exception object: " + args.ExceptionObject, "ERROR");
+                }
+            };
+
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (sender, args) =>
+            {
+                LogCrash(componentName + " UnobservedTaskException", args.Exception);
+                args.SetObserved();
+            };
+        }
+
+        public static void LogCrash(string context, Exception ex)
+        {
+            if (ex == null) return;
+
+            Process currentProc = Process.GetCurrentProcess();
+            string crashDetails =
+                "================ CRASH / EXCEPTION REPORT ================\n" +
+                "Timestamp : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "\n" +
+                "Context   : " + context + "\n" +
+                "Process   : " + currentProc.ProcessName + " (PID: " + currentProc.Id + ", Session: " + currentProc.SessionId + ")\n" +
+                "Thread ID : " + System.Threading.Thread.CurrentThread.ManagedThreadId + "\n" +
+                "User      : " + Environment.UserDomainName + "\\" + Environment.UserName + "\n" +
+                FormatExceptionChain(ex) +
+                "==========================================================";
+
+            WriteToLog(crashDetails, "ERROR");
+
+            try
+            {
+                lock (_syncObject)
+                {
+                    if (!Directory.Exists(path))
+                    {
+                        Directory.CreateDirectory(path);
+                    }
+                    File.AppendAllText(crashFilepath, crashDetails + Environment.NewLine);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private static string FormatExceptionChain(Exception ex, int depth = 0)
+        {
+            if (ex == null) return "";
+            string indent = new string(' ', depth * 2);
+            string info =
+                indent + "Exception Type : " + ex.GetType().FullName + "\n" +
+                indent + "Message        : " + ex.Message + "\n" +
+                indent + "HResult        : 0x" + ex.HResult.ToString("X8") + "\n" +
+                indent + "Source         : " + ex.Source + "\n" +
+                indent + "TargetSite     : " + (ex.TargetSite != null ? ex.TargetSite.ToString() : "N/A") + "\n" +
+                indent + "StackTrace     :\n" + (ex.StackTrace ?? "(no stack trace)") + "\n";
+
+            if (ex.InnerException != null)
+            {
+                info += indent + "--- Inner Exception ---\n" + FormatExceptionChain(ex.InnerException, depth + 1);
+            }
+            return info;
+        }
 
         public static void WriteToLog(string Message, string level = "INFO")
         {
             level = level.ToUpper();
 
-            // Craft message //
+            // Craft message with explicit hours, minutes, and seconds (yyyy-MM-dd HH:mm:ss) //
             string prefix = "[ ] ";
             if (level == "ERROR")
             {
                 prefix = "[!] ";
             }
-            // Doesn't seem very useful
-            //Process currentProcess = Process.GetCurrentProcess();
-            // " PID-" + currentProcess.Id.ToString() +
-            String sumString = prefix + DateTime.Now.ToLongTimeString() +  ": " + Message;
-
+            String sumString = prefix + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ": " + Message;
 
             // Log to Console //
-            Console.ForegroundColor = ConsoleColor.Blue;
-            if (level == "ERROR")
+            if (Environment.UserInteractive)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-            }
-            else if (level == "TEST")
-            {
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-            }
-            else if (level == "OUTPUT")
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-            }
-            System.Console.WriteLine(sumString);
-            Console.ForegroundColor = ConsoleColor.White;   // Resetting back to normal
-
-            
-
-            // Log to file //
-            if (!Directory.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-            }
-            if (!File.Exists(filepath))
-            {
-                // Create a file to write to.   
-                using (StreamWriter sw = File.CreateText(filepath))
+                try
                 {
-                    sw.WriteLine(sumString);
+                    Console.ForegroundColor = ConsoleColor.Blue;
+                    if (level == "ERROR")
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                    }
+                    else if (level == "TEST")
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    }
+                    else if (level == "OUTPUT")
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                    }
+                    System.Console.WriteLine(sumString);
+                    Console.ForegroundColor = ConsoleColor.White;   // Resetting back to normal
+                }
+                catch
+                {
                 }
             }
-            else
+
+            // Log to file thread-safely //
+            try
             {
-                using (StreamWriter sw = File.AppendText(filepath))
+                lock (_syncObject)
                 {
-                    lock (_syncObject)
+                    if (!Directory.Exists(path))
+                    {
+                        Directory.CreateDirectory(path);
+                    }
+                    using (StreamWriter sw = File.AppendText(filepath))
                     {
                         sw.WriteLine(sumString);
                         sw.Flush();
                     }
                 }
             }
-
-
+            catch
+            {
+            }
         }
         private static ManagementObjectCollection CheckWmiQuery(string wminamespace, string query)
         {

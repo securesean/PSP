@@ -53,6 +53,11 @@ namespace PSP_Notifier
 
         static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                WriteNotifierLog("[CRASH] UnhandledException (IsTerminating=" + e.IsTerminating + "): " + e.ExceptionObject);
+            };
+
             bool processOnce = false;
             foreach (string arg in args)
             {

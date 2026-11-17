@@ -11,7 +11,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - Can be installed as a persistent Windows Service (`-install` / `-uninstall`) running as `SYSTEM` (`PSPService`) with a separate user-mode notification agent (`PSP_Notifier.exe`) that displays Toast notifications in the interactive user session
 - Structured rule engine (`RuleEngine` & `%ProgramData%\PSP_Logs\rules_config.json`) for evaluating logon exclusions, process filters, and well-known group SIDs
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
-- Full details are writen to %Programdata%\PSP_Logs
+- Full details are writen to `%ProgramData%\PSP_Logs` (with explicit `yyyy-MM-dd HH:mm:ss` timestamps and dedicated crash/exception diagnostics in `PSP_CrashLog.txt`)
 - Toast on-click event opens the xml log 
 - `--test` runs real (non-simulated) end-to-end self-tests (creating real test accounts, performing real network/explicit-credential logons, and installing a real temporary Windows Service) and automatically enables missing Windows Audit Policy subcategories (such as `Security System Extension` via `auditpol.exe`) when events like `4697` are not yet enabled
 - Supported Events:
@@ -52,10 +52,8 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Add seconds to log output
 - Add button to "never show this message again" for common events
 - Include/Display Basic License with EULA 
-- Better logging on the reason for a crash
 - Alert on attempted port scanning. Listen on some common ports (80, 443, 22) and alert if anyone trying to connect to them. Automatically do some basic port scanning and name resolution of the host that attempted the connection. 
 - Alert on Windows Security Log Event ID 4799: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4799
 - Alert on Windows Security Log Event ID 4798: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4798

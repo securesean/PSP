@@ -22,6 +22,20 @@ namespace PSP_Console
 
         static void Main(string[] args)
         {
+            Helper.RegisterGlobalCrashHandlers("PSP_Console");
+            try
+            {
+                RunMain(args);
+            }
+            catch (Exception ex)
+            {
+                Helper.LogCrash("PSP_Console.Main Fatal Crash", ex);
+                throw;
+            }
+        }
+
+        private static void RunMain(string[] args)
+        {
             bool doInstall = false;
             bool doUninstall = false;
 

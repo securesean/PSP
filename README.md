@@ -13,6 +13,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to `%ProgramData%\PSP_Logs` (with explicit `yyyy-MM-dd HH:mm:ss` timestamps and dedicated crash/exception diagnostics in `PSP_CrashLog.txt`)
 - Toast on-click event opens the xml log, and Toast notifications include a **"Never show this again"** action button to persistently suppress recurring common alerts (`%ProgramData%\PSP_Logs\suppressed_alerts.txt` / `rules_config.json`)
+- Includes and displays a Basic License & EULA (`LICENSE.txt` and `--license` / `--eula` flag, plus automatic first-run display)
 - `--test` runs real (non-simulated) end-to-end self-tests (creating real test accounts, performing real network/explicit-credential logons, and installing a real temporary Windows Service) and automatically enables missing Windows Audit Policy subcategories (such as `Security System Extension` via `auditpol.exe`) when events like `4697` are not yet enabled
 - Supported Events:
    - 4624 - Logon Success 
@@ -52,7 +53,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Include/Display Basic License with EULA 
 - Alert on attempted port scanning. Listen on some common ports (80, 443, 22) and alert if anyone trying to connect to them. Automatically do some basic port scanning and name resolution of the host that attempted the connection. 
 - Alert on Windows Security Log Event ID 4799: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4799
 - Alert on Windows Security Log Event ID 4798: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4798

@@ -47,6 +47,11 @@ namespace PSP_Console
                     printBanner();
                     return;
                 }
+                if (lower == "-license" || lower == "--license" || lower == "-eula" || lower == "--eula")
+                {
+                    LicenseManager.DisplayLicense();
+                    return;
+                }
                 if (lower == "-t" || lower == "--test")
                 {
                     testMode = true;
@@ -88,6 +93,7 @@ namespace PSP_Console
             }
 
             ToastHelper.EnsureAlertDirectories();
+            LicenseManager.EnsureFirstRunLicenseShown();
             ServiceManager.EnsureUserModeNotifierRunning();
             if (!testMode)
             {
@@ -113,6 +119,7 @@ namespace PSP_Console
                           "  -install / --install     Install PSP as a Windows Service and register the user-mode toast notifier\n" +
                           "  -uninstall / --uninstall Remove the PSP Windows Service and user-mode toast notifier\n" +
                           "  -t / --test              Trigger self-test security events to verify end-to-end functionality\n" +
+                          "  -license / --eula        Display Basic License and End-User License Agreement (EULA)\n" +
                           "  -h / --help              Show this help message";
             Console.WriteLine(help);
             Helper.WriteToLog(help);

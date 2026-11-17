@@ -110,17 +110,20 @@ namespace PSP_Console
             List<ToastButtonItem> buttons = new List<ToastButtonItem>();
             string combined = lines != null ? string.Join("\n", lines) : "";
 
-            // 1. If remote IP is in alert, add 'Block IP'
-            Match ipMatch = Regex.Match(combined, @"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b");
-            if (ipMatch.Success && Helper.isRemoteIP(ipMatch.Groups[1].Value))
+            // 1. If IP is in alert (or Port Scan Source IP), add 'Block IP'
+            Match ipMatch = Regex.Match(combined, @"Source IP:\s*([^\s(\r\n]+)|\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b");
+            if (ipMatch.Success)
             {
-                string ip = ipMatch.Groups[1].Value;
-                buttons.Add(new ToastButtonItem
+                string ip = !string.IsNullOrEmpty(ipMatch.Groups[1].Value) ? ipMatch.Groups[1].Value : ipMatch.Groups[2].Value;
+                if (!string.IsNullOrEmpty(ip) && (combined.IndexOf("Port Scan", StringComparison.OrdinalIgnoreCase) >= 0 || Helper.isRemoteIP(ip)))
                 {
-                    Content = "Block: " + ip + "",
-                    Arguments = "action=block_ip&ip=" + Uri.EscapeDataString(ip),
-                    IconUri = new Uri(BlockIpIconPath).AbsoluteUri
-                });
+                    buttons.Add(new ToastButtonItem
+                    {
+                        Content = "Block IP",
+                        Arguments = "action=block_ip&ip=" + Uri.EscapeDataString(ip),
+                        IconUri = new Uri(BlockIpIconPath).AbsoluteUri
+                    });
+                }
             }
 
             // 2. If ServiceName is in alert, add 'Kill Service'
@@ -184,7 +187,7 @@ namespace PSP_Console
             {
                 buttons.Add(new ToastButtonItem
                 {
-                    Content = "Don't show again",
+                    Content = "Don't show",
                     Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature) + "&eventId=" + eventId,
                     IconUri = new Uri(MuteIconPath).AbsoluteUri
                 });
@@ -219,6 +222,9 @@ namespace PSP_Console
                         string sha256 = ComputeSha256(filePath);
                         string vtUrl = "https://www.virustotal.com/gui/file/" + sha256;
                         Helper.WriteToLog("Toast Action Executed: Computed SHA-256 for " + filePath + " = " + sha256 + " -> " + vtUrl, "OUTPUT");
+                    } else
+                    {
+                        Helper.WriteToLog("Toast Action Executed: File not found for VT check: " + filePath, "ERROR");
                     }
                 }
                 else if (string.Equals(action, "yara_scan", StringComparison.OrdinalIgnoreCase) && parameters.ContainsKey("path"))

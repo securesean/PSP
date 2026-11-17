@@ -116,6 +116,30 @@ namespace PSP_Console
                     ? new List<ToastButtonItem>(buttons)
                     : ToastActionHandler.BuildDefaultActionButtons(safeLines, RuleEngine.GetAlertSignature(safeLines), eventId);
 
+                string signature = RuleEngine.GetAlertSignature(safeLines);
+                if (!string.IsNullOrEmpty(signature) && finalButtons.Count < 5)
+                {
+                    bool hasSuppress = false;
+                    foreach (ToastButtonItem b in finalButtons)
+                    {
+                        if (b != null && b.Arguments != null && b.Arguments.Contains("action=suppress"))
+                        {
+                            hasSuppress = true;
+                            break;
+                        }
+                    }
+                    if (!hasSuppress)
+                    {
+                        ToastActionHandler.EnsureIconsGenerated();
+                        finalButtons.Add(new ToastButtonItem
+                        {
+                            Content = "Don't show",
+                            Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature) + "&eventId=" + eventId,
+                            IconUri = File.Exists(ToastActionHandler.MuteIconPath) ? new Uri(ToastActionHandler.MuteIconPath).AbsoluteUri : null
+                        });
+                    }
+                }
+
                 ToastActionHandler.EnsureIconsGenerated();
                 string effectiveLogo = !string.IsNullOrEmpty(appLogoPath) ? appLogoPath : ToastActionHandler.AppLogoPngPath;
                 string effectiveSound = !string.IsNullOrEmpty(audioUri) ? audioUri : ToastActionHandler.DefaultToastSoundUri;

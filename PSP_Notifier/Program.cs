@@ -267,12 +267,14 @@ namespace PSP_Notifier
                     }
                 }
 
+                List<string> buttonLabels = new List<string>();
                 if (payload.Buttons != null)
                 {
                     foreach (ToastButtonItem btn in payload.Buttons)
                     {
                         if (btn != null && !string.IsNullOrEmpty(btn.Content) && !string.IsNullOrEmpty(btn.Arguments))
                         {
+                            buttonLabels.Add(btn.Content);
                             var toastBtn = new ToastButton(btn.Content, btn.Arguments);
                             if (!string.IsNullOrEmpty(btn.IconUri))
                             {
@@ -284,7 +286,8 @@ namespace PSP_Notifier
                 }
 
                 string firstLine = (payload.Lines != null && payload.Lines.Count > 0) ? payload.Lines[0] : "(no text)";
-                WriteNotifierLog("Displaying toast [Record=" + payload.EventRecordId + "]: " + firstLine);
+                string btnInfo = buttonLabels.Count > 0 ? " [Buttons: " + string.Join(", ", buttonLabels) + "]" : "";
+                WriteNotifierLog("Displaying toast [Record=" + payload.EventRecordId + "]: " + firstLine + btnInfo);
 
                 toast.Show();
             }

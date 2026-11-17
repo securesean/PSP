@@ -175,7 +175,7 @@ namespace PSP_Console
                 string recordId = DateTime.UtcNow.Ticks.ToString();
                 SavePortScanXmlReport(recordId, remoteIp, remotePort, localPort, resolvedHostname, openPortsSummary, probePreview);
 
-                // 4. Send Toast Notification
+                // 4. Send Toast Notification (ToastActionHandler attaches 'Block IP' button)
                 ToastHelper.ShowToast(
                     recordId,
                     "Port Scan / Connection Attempt on Port " + localPort + "!",

@@ -260,6 +260,8 @@ namespace PSP_Console
                 Helper.WriteToLog("Subscribed");
                 while (stopEvent == null || !stopEvent.WaitOne(1000))
                 {
+                    RuleEngine.ProcessPendingActionFiles();
+
                     if (testMode)
                     {
                         portScanDetector.TriggerSelfTestConnection();

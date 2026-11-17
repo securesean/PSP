@@ -37,6 +37,17 @@ namespace PSP_Console
             _stopping = true;
         }
 
+        public void TrimRecordedEventsCache(int maxEntries = 200)
+        {
+            lock (_recordedEventsLock)
+            {
+                if (RecordedEvents.Count > maxEntries)
+                {
+                    RecordedEvents.Clear();
+                }
+            }
+        }
+
         private void RefreshAdminListDriver()
         {
             List<string> tempList = new List<string>();

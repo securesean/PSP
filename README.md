@@ -65,8 +65,18 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 
 
 ## How to Compile:
+
+### Visual Studio GUI:
 - Right click on the project in the "Solution Explorer" and choose, "Manage NuGet Packages" and install, "Microsoft.Toolkit.Uwp.Notifications"
-- Click Build Solution
+- Select **Release** configuration and click **Build Solution**
+
+### Command Line (PowerShell / Developer Command Prompt):
+```powershell
+# Locate MSBuild via vswhere and build Release binaries without PDB symbols or embedded build paths:
+$msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe"
+& $msbuild PSP_Console.sln /t:Clean,Restore,Build /p:Configuration=Release /p:DebugType=none /p:DebugSymbols=false /p:AllowedReferenceRelatedFileExtensions=-
+```
+The compiled release binaries (`PSP_Console.exe`, `PSP_Notifier.exe`, and required DLLs) will be output to `PSP_Console\bin\Release\`.
 
 # TODO - Possible Future
 - Subscribe to events on a remote computer: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN

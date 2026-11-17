@@ -8,6 +8,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 [Latest Version Here](https://github.com/securesean/PSP/releases)
 
 ## Features:
+- Can be installed as a persistent Windows Service (`-install` / `-uninstall`) running as `SYSTEM` (`PSPService`) with a separate user-mode notification agent (`PSP_Notifier.exe`) that displays Toast notifications in the interactive user session
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to %Programdata%\PSP_Logs
 - Toast on-click event opens the xml log 
@@ -36,7 +37,8 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 ![ServiceInstall](assets/AddedToGroup.png)
 
 ## How to Install
-- Double click and it should pop a UAC prompt
+- Run `PSP_Console.exe -install` from an Administrator prompt to install and start the `PSPService` Windows Service and register the user-mode toast agent (`PSP_Notifier.exe`) to run at user logon (use `PSP_Console.exe -uninstall` to remove)
+- Or double click `PSP_Console.exe` to run interactively in console mode (it will pop a UAC prompt and launch `PSP_Notifier.exe` in user mode)
 - Enable "Security System Extension" to support these events: https://www.windows-security.org/b355febe2c7a2ae1eaba46c4470d6d4a/security-system-extension . See if your machine is already collecting them with the command: `AuditPol /get /category:* | grep "Security System Extension"` By default it will say, "No Auditing". We (probably) need it to say, "Success"
  - Inspired based on: https://www.stigviewer.com/stig/windows_7/2017-12-01/finding/V-26556 Fix Text (F-29805r1_fix)
  - GUI - secpol.msc  https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/how-to-configure-security-policy-settings enable "Audit Security System Extension" . C# - https://docs.microsoft.com/en-us/dotnet/api/system.security.accesscontrol.filesystemauditrule?view=net-6.0
@@ -49,7 +51,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Update to support being installed as a Windows Service that will have a user mode component to still show alerts as they are detected
 - Make better rule logic flow (instead of messy if statements before every toast notification)
 - Make better self tests - try not to simulate anything. For example, create a real service to test service detection.
 - After self testing, and finding that some events are not enabled, see if I can't automatiaclly enable them (such as service installed events). Look at  https://github.com/rkovar/PowerShell/blob/master/audit.bat

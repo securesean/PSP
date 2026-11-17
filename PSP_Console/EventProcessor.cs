@@ -14,7 +14,9 @@ namespace PSP_Console
     {
         private List<string> localAdminGroupList = new List<string>();
         private Dictionary<long, EventRecordWrittenEventArgs> RecordedEvents = new Dictionary<long, EventRecordWrittenEventArgs>();
+        private readonly object _recordedEventsLock = new object();
         private string EventVaule_NotSet = "%%1793";
+        private volatile bool _stopping = false;
         Thread RefreshAdminListThread;
 
         public bool TestMode { get; internal set; }
@@ -24,25 +26,56 @@ namespace PSP_Console
         {
             // Periodically get list of SID's in the admin group
             RefreshAdminListThread = new Thread(RefreshAdminListDriver);
+            RefreshAdminListThread.IsBackground = true;
             RefreshAdminListThread.Start();
             TestMode = false;
             TestTriggeredEventIDs = new List<int>();
+        }
 
+        public void Stop()
+        {
+            _stopping = true;
         }
 
         private void RefreshAdminListDriver()
         {
             List<string> tempList = new List<string>();
-            while (true)
+            while (!_stopping)
             {
                 tempList = Helper.GetLocalAdminSIDs();
-                if(tempList.Count != 0)
+                if (tempList.Count != 0)
                 {
                     localAdminGroupList = tempList;
                 }
-                Thread.Sleep(1000 * 60);
+                for (int i = 0; i < 60 && !_stopping; i++)
+                {
+                    Thread.Sleep(1000);
+                }
             }
+        }
 
+        private string SaveEventRecord(EventRecordWrittenEventArgs eventRecord)
+        {
+            long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
+            string eventRecordString = record_id.ToString("0." + new string('#', 339));
+            lock (_recordedEventsLock)
+            {
+                RecordedEvents[record_id] = eventRecord;
+            }
+            try
+            {
+                if (!Directory.Exists(Helper.path))
+                {
+                    Directory.CreateDirectory(Helper.path);
+                }
+                string xmlPath = Path.Combine(Helper.path, eventRecordString + ".xml");
+                File.WriteAllText(xmlPath, eventRecord.EventRecord.ToXml());
+            }
+            catch (Exception ex)
+            {
+                Helper.WriteToLog("Failed to save event XML: " + ex.Message, "ERROR");
+            }
+            return eventRecordString;
         }
 
 
@@ -95,18 +128,11 @@ namespace PSP_Console
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who Cleared Security Log: " + SubjectUserName, "OUTPUT");
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
-
-
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddText(SubjectUserName + " Cleared Security Log!");
-                    toast.AddArgument("conversationId", eventRecordString);
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(eventRecordString, SubjectUserName + " Cleared Security Log!");
 
                     
 
@@ -469,34 +495,20 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User who installed Service: " + SubjectUserName, "OUTPUT");
                     Helper.WriteToLog("ServiceName: " + ServiceName, "OUTPUT");
                     Helper.WriteToLog("ServiceFileName: " + ServiceFileName, "OUTPUT");
 
-                    /*  ToDo: Test remove service installation via RPC
-                    string ip = logEventProps[6].ToString();
-                    string port = logEventProps[7].ToString();
-                    if (isRemoteIP(ip))
-                    {
-                        Helper.WriteToLog("IP Address: " + ip, "OUTPUT");
-                        Helper.WriteToLog("IP Port: " + port, "OUTPUT");
-                    }
-                    */
-
-                    // Toast 
-                    // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText("Service Installed by " + SubjectUserName)
-                    .AddText("ServiceName: " + ServiceName)
-                    .AddText("ServiceFileName: " + ServiceFileName);
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(
+                        eventRecordString,
+                        "Service Installed by " + SubjectUserName,
+                        "ServiceName: " + ServiceName,
+                        "ServiceFileName: " + ServiceFileName);
 
 
 
@@ -550,25 +562,22 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
-
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog(SubjectUserName + " enabled the local user " + TargetUserName, "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText(SubjectUserName + " enabled the local user " + TargetUserName);
+                    // Toast via user-mode component
+                    List<string> toastLines = new List<string>
+                    {
+                        SubjectUserName + " enabled the local user " + TargetUserName
+                    };
                     if (TargetSid.ToString().EndsWith("-500"))
                     {
-                        toast.AddText(TargetUserName + " is the local RID 500 Admin account! ");
+                        toastLines.Add(TargetUserName + " is the local RID 500 Admin account! ");
                     }
-
-                    toast.Show();
+                    ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
 
                     
 
@@ -620,20 +629,16 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console
                     Helper.WriteToLog(SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'", "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText(SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'");
-
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(
+                        eventRecordString,
+                        SubjectUserName + " performed a performed a password reset for '" + TargetUserName + "'");
 
 
 
@@ -702,33 +707,31 @@ namespace PSP_Console
                     if (SubjectUserSid != "S-1-5-18" && !SubjectUserName.ToUpper().Contains(Environment.MachineName.ToUpper() + "$"))
                     {
 
-                        // Store in 'Database'
-                        long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
-                        string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                        // Store in 'Database' and save XML for user-mode toast agent
+                        string eventRecordString = SaveEventRecord(eventRecord);
 
                         // Output to File, Console
                         Helper.WriteToLog(SubjectUserName + " performed a logon using explicit creds (Usually runas.exe or RDP) as '" + TargetDomainName + "\\" + TargetUserName + "'", "OUTPUT");
 
-
-                        // Toast 
-                        ToastContentBuilder toast = new ToastContentBuilder()
-                        .AddArgument("conversationId", eventRecordString)
-                        .AddText(SubjectUserName + " performed a logon using explicit creds as '" + TargetDomainName + "\\" + TargetUserName + "'");
+                        // Toast via user-mode component
+                        List<string> toastLines = new List<string>
+                        {
+                            SubjectUserName + " performed a logon using explicit creds as '" + TargetDomainName + "\\" + TargetUserName + "'"
+                        };
                         if (Helper.isRemoteIP(IpAddress))
                         {
-                            toast.AddText("From " + IpAddress);
+                            toastLines.Add("From " + IpAddress);
                         }
-                        toast.AddText("From " + ProcessName + " (PID: " + ProcessId + ")");
+                        toastLines.Add("From " + ProcessName + " (PID: " + ProcessId + ")");
                         if (ProcessName.Contains("svchost.exe"))
                         {
-                            toast.AddText("(svchost.exe usually means you usually just ran runas.exe)");
+                            toastLines.Add("(svchost.exe usually means you usually just ran runas.exe)");
                         }
                         else if (ProcessName.Contains("lsass.exe"))
                         {
-                            toast.AddText("(lsass.exe usually means you just RDP'd)");
+                            toastLines.Add("(lsass.exe usually means you just RDP'd)");
                         }
-                        toast.Show();
+                        ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
 
                     }
 
@@ -787,10 +790,8 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     string sid = MemberSid;
                     string localGroup = TargetUserName;
@@ -799,7 +800,7 @@ namespace PSP_Console
                     {
                         translatedUserName = new System.Security.Principal.SecurityIdentifier(MemberSid).Translate(typeof(System.Security.Principal.NTAccount)).ToString();
                     }
-                    catch (System.Security.Principal.IdentityNotMappedException ex)
+                    catch (System.Security.Principal.IdentityNotMappedException)
                     {
                         Helper.WriteToLog("Failed to lookup user identity: " + MemberSid, "ERROR");
                         translatedUserName = MemberSid;
@@ -808,10 +809,11 @@ namespace PSP_Console
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog(SubjectUserName + " added a user (" + translatedUserName + ") to the local group: '" + TargetUserName + "'", "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText(SubjectUserName + " added a user (" + translatedUserName + ") to the group: " + TargetUserName);
+                    // Toast lines
+                    List<string> toastLines = new List<string>
+                    {
+                        SubjectUserName + " added a user (" + translatedUserName + ") to the group: " + TargetUserName
+                    };
 
 
                     // Is the machine account doing it?
@@ -829,182 +831,182 @@ namespace PSP_Console
 
                     if (TargetSid.EndsWith("-544"))
                     {
-                        toast.AddText("WARNING: User added to local Admin Group! ");
+                        toastLines.Add("WARNING: User added to local Admin Group! ");
                     }
                     else if (TargetSid.EndsWith("-546"))
                     {
-                        toast.AddText("WARNING: User added to local Guest Group! ");
+                        toastLines.Add("WARNING: User added to local Guest Group! ");
                     }
                     else if (TargetSid.EndsWith("-547"))
                     {
-                        toast.AddText("WARNING: User added to local Power Users Group! ");
+                        toastLines.Add("WARNING: User added to local Power Users Group! ");
                     }
                     else if (TargetSid.EndsWith("-548"))
                     {
-                        toast.AddText("WARNING: User added to local Account Operators Group! ");
+                        toastLines.Add("WARNING: User added to local Account Operators Group! ");
                     }
                     else if (TargetSid.EndsWith("-549"))
                     {
-                        toast.AddText("WARNING: User added to local Server Operators Group! ");
+                        toastLines.Add("WARNING: User added to local Server Operators Group! ");
                     }
                     else if (TargetSid.EndsWith("-551"))
                     {
-                        toast.AddText("WARNING: User added to local Backup Operators Group! ");
+                        toastLines.Add("WARNING: User added to local Backup Operators Group! ");
                     }
                     else if (TargetSid.EndsWith("-552"))
                     {
-                        toast.AddText("WARNING: User added to local Replicators Group! ");
+                        toastLines.Add("WARNING: User added to local Replicators Group! ");
                     }
                     else if (TargetSid.EndsWith("-554"))
                     {
-                        toast.AddText("WARNING: User added to backward compatibility group that allows read access on all users and groups in the domain! ");
+                        toastLines.Add("WARNING: User added to backward compatibility group that allows read access on all users and groups in the domain! ");
                     }
                     else if (TargetSid.EndsWith("-555"))
                     {
-                        toast.AddText("WARNING: User added to local RDP Group! ");
+                        toastLines.Add("WARNING: User added to local RDP Group! ");
                     }
                     else if (TargetSid.EndsWith("-556"))
                     {
-                        toast.AddText("WARNING: User added to Network Configuration Operators Group! ");
+                        toastLines.Add("WARNING: User added to Network Configuration Operators Group! ");
                     }
                     else if (TargetSid.EndsWith("-557"))
                     {
-                        toast.AddText("WARNING: User added to Incoming Forest Trust Builders Group! ");
+                        toastLines.Add("WARNING: User added to Incoming Forest Trust Builders Group! ");
                     }
                     else if (TargetSid.EndsWith("-558"))
                     {
-                        toast.AddText("WARNING: User added to Performance Monitor Users Group! ");
+                        toastLines.Add("WARNING: User added to Performance Monitor Users Group! ");
                     }
                     else if (TargetSid.EndsWith("-559"))
                     {
-                        toast.AddText("WARNING: User added to Performance Log Users Group! ");
+                        toastLines.Add("WARNING: User added to Performance Log Users Group! ");
                     }
                     else if (TargetSid.EndsWith("-560"))
                     {
-                        toast.AddText("WARNING: User added to Windows Authorization Access Group Group! ");
+                        toastLines.Add("WARNING: User added to Windows Authorization Access Group Group! ");
                     }
                     else if (TargetSid.EndsWith("-544"))
                     {
-                        toast.AddText("WARNING: User added to Terminal Server License Servers Group! ");
+                        toastLines.Add("WARNING: User added to Terminal Server License Servers Group! ");
                     }
                     else if (TargetSid.EndsWith("-561"))
                     {
-                        toast.AddText("WARNING: User added to Terminal Server License Servers Group! ");
+                        toastLines.Add("WARNING: User added to Terminal Server License Servers Group! ");
                     }
                     else if (TargetSid.EndsWith("-562"))
                     {
-                        toast.AddText("WARNING: User added to Distributed COM Users Group! ");
+                        toastLines.Add("WARNING: User added to Distributed COM Users Group! ");
                     }
                     else if (TargetSid.EndsWith("-569"))
                     {
-                        toast.AddText("WARNING: User added to Cryptographic Operators Group! ");
+                        toastLines.Add("WARNING: User added to Cryptographic Operators Group! ");
                     }
                     else if (TargetSid.EndsWith("-573"))
                     {
-                        toast.AddText("WARNING: User added to Event Log Readers Group! ");
+                        toastLines.Add("WARNING: User added to Event Log Readers Group! ");
                     }
                     else if (TargetSid.EndsWith("-574"))
                     {
-                        toast.AddText("WARNING: User added to Certificate Service DCOM Access Group! ");
+                        toastLines.Add("WARNING: User added to Certificate Service DCOM Access Group! ");
                     }
                     else if (TargetSid.EndsWith("-575"))
                     {
-                        toast.AddText("WARNING: User added to RDS Remote Access Servers Group! ");
+                        toastLines.Add("WARNING: User added to RDS Remote Access Servers Group! ");
                     }
                     else if (TargetSid.EndsWith("-576"))
                     {
-                        toast.AddText("WARNING: User added to RDS Endpoint Servers Group! ");
+                        toastLines.Add("WARNING: User added to RDS Endpoint Servers Group! ");
                     }
                     else if (TargetSid.EndsWith("-577"))
                     {
-                        toast.AddText("WARNING: User added to RDS Management Servers Group! ");
+                        toastLines.Add("WARNING: User added to RDS Management Servers Group! ");
                     }
                     else if (TargetSid.EndsWith("-578"))
                     {
-                        toast.AddText("WARNING: Members of this group have complete and unrestricted access to all features of Hyper-V.");
+                        toastLines.Add("WARNING: Members of this group have complete and unrestricted access to all features of Hyper-V.");
                     }
                     else if (TargetSid.EndsWith("-579"))
                     {
-                        toast.AddText("WARNING: Members of this group can remotely query authorization attributes and permissions for resources on this computer.");
+                        toastLines.Add("WARNING: Members of this group can remotely query authorization attributes and permissions for resources on this computer.");
                     }
                     else if (TargetSid.EndsWith("-580"))
                     {
-                        toast.AddText("WARNING: Members of this group can access WMI resources over management protocols (such as WS-Management via the Windows Remote Management service). This applies only to WMI namespaces that grant access to the user.");
+                        toastLines.Add("WARNING: Members of this group can access WMI resources over management protocols (such as WS-Management via the Windows Remote Management service). This applies only to WMI namespaces that grant access to the user.");
                     }
                     else if (TargetSid.EndsWith("-10"))
                     {
-                        toast.AddText("WARNING: User added to NTLM Authentication Group! ");
-                        toast.AddText("A SID that is used when the NTLM authentication package authenticated the client");
+                        toastLines.Add("WARNING: User added to NTLM Authentication Group! ");
+                        toastLines.Add("A SID that is used when the NTLM authentication package authenticated the client");
                     }
                     else if (TargetSid.EndsWith("-64-14"))
                     {
-                        toast.AddText("WARNING: A SID that is used when the SChannel authentication package authenticated the client.");
+                        toastLines.Add("WARNING: A SID that is used when the SChannel authentication package authenticated the client.");
                     }
                     else if (TargetSid.EndsWith("-64-21"))
                     {
-                        toast.AddText("WARNING: A SID that is used when the Digest authentication package authenticated the client.");
+                        toastLines.Add("WARNING: A SID that is used when the Digest authentication package authenticated the client.");
                     }
                     else if (TargetSid.EndsWith("-5-80"))
                     {
-                        toast.AddText("WARNING: A SID that is used as an NT Service account prefix.");
+                        toastLines.Add("WARNING: A SID that is used as an NT Service account prefix.");
                     }
                     else if (TargetSid.EndsWith("-80-0"))
                     {
-                        toast.AddText("WARNING: A group that includes all service processes that are configured on the system. Membership is controlled by the operating system. SID S-1-5-80-0 equals NT SERVICES\\ALL SERVICES. ");
+                        toastLines.Add("WARNING: A group that includes all service processes that are configured on the system. Membership is controlled by the operating system. SID S-1-5-80-0 equals NT SERVICES\\ALL SERVICES. ");
                     }
                     else if (TargetSid.EndsWith("-83-0"))
                     {
-                        toast.AddText("WARNING: User added to NT VIRTUAL MACHINE\\Virtual Machines Group! ");
-                        toast.AddText("The group is created when the Hyper-V role is installed. Membership in the group is maintained by the Hyper-V Management Service (VMMS). This group requires the Create Symbolic Links right (SeCreateSymbolicLinkPrivilege), and also the Log on as a Service right (SeServiceLogonRight).");
+                        toastLines.Add("WARNING: User added to NT VIRTUAL MACHINE\\Virtual Machines Group! ");
+                        toastLines.Add("The group is created when the Hyper-V role is installed. Membership in the group is maintained by the Hyper-V Management Service (VMMS). This group requires the Create Symbolic Links right (SeCreateSymbolicLinkPrivilege), and also the Log on as a Service right (SeServiceLogonRight).");
                     }
                     else if (TargetSid.EndsWith("-501"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_USER_RID_GUEST Group! ");
-                        toast.AddText("The guest-user account in a domain. Users who do not have an account can automatically sign in to this account.");
+                        toastLines.Add("WARNING: User added to DOMAIN_USER_RID_GUEST Group! ");
+                        toastLines.Add("The guest-user account in a domain. Users who do not have an account can automatically sign in to this account.");
                     }
                     else if (TargetSid.EndsWith("-513"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_USERS Group! ");
-                        toast.AddText("A group that contains all user accounts in a domain. All users are automatically added to this group.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_USERS Group! ");
+                        toastLines.Add("A group that contains all user accounts in a domain. All users are automatically added to this group.");
                     }
                     else if (TargetSid.EndsWith("-514"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_GUESTS Group! ");
-                        toast.AddText("The group Guest account in a domain.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_GUESTS Group! ");
+                        toastLines.Add("The group Guest account in a domain.");
                     }
                     else if (TargetSid.EndsWith("-515"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_COMPUTERS Group! ");
-                        toast.AddText("The Domain Computer group. All computers in the domain are members of this group.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_COMPUTERS Group! ");
+                        toastLines.Add("The Domain Computer group. All computers in the domain are members of this group.");
                     }
                     else if (TargetSid.EndsWith("-516"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_CONTROLLERS Group! ");
-                        toast.AddText("The Domain Controller group. All domain controllers in the domain are members of this group.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_CONTROLLERS Group! ");
+                        toastLines.Add("The Domain Controller group. All domain controllers in the domain are members of this group.");
                     }
                     else if (TargetSid.EndsWith("-517"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_CERT_ADMINS Group! ");
-                        toast.AddText("The certificate publishers' group. Computers running Active Directory Certificate Services are members of this group.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_CERT_ADMINS Group! ");
+                        toastLines.Add("The certificate publishers' group. Computers running Active Directory Certificate Services are members of this group.");
                     }
                     else if (TargetSid.EndsWith("-518"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_SCHEMA_ADMINS Group! ");
-                        toast.AddText("The schema administrators' group. Members of this group can modify the Active Directory schema.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_SCHEMA_ADMINS Group! ");
+                        toastLines.Add("The schema administrators' group. Members of this group can modify the Active Directory schema.");
                     }
                     else if (TargetSid.EndsWith("-519"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_ENTERPRISE_ADMINS Group! ");
-                        toast.AddText("	The enterprise administrators' group. Members of this group have full access to all domains in the Active Directory forest. Enterprise administrators are responsible for forest-level operations such as adding or removing new domains.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_ENTERPRISE_ADMINS Group! ");
+                        toastLines.Add("	The enterprise administrators' group. Members of this group have full access to all domains in the Active Directory forest. Enterprise administrators are responsible for forest-level operations such as adding or removing new domains.");
                     }
                     else if (TargetSid.EndsWith("-520"))
                     {
-                        toast.AddText("WARNING: User added to DOMAIN_GROUP_RID_POLICY_ADMINS Group! ");
-                        toast.AddText("The policy administrators' group.");
+                        toastLines.Add("WARNING: User added to DOMAIN_GROUP_RID_POLICY_ADMINS Group! ");
+                        toastLines.Add("The policy administrators' group.");
                     }
                     else
                     {
-                        toast.AddText("With a cumstom (Unknown) Group");
+                        toastLines.Add("With a cumstom (Unknown) Group");
                     }
 
                     // I AM SO SORRY THIS IS SO SLOPPY. I suspect that everytime Group Policy is enforced, the API's add the
@@ -1018,7 +1020,7 @@ namespace PSP_Console
                     }
                     else
                     {
-                        toast.Show();
+                        ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
                     }
 
 
@@ -1080,10 +1082,8 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     String SubjectUsername = logEventProps[0].ToString();
                     String TargetUserName = logEventProps[1].ToString();
@@ -1104,10 +1104,10 @@ namespace PSP_Console
                     Helper.WriteToLog("DisplayName: " + DisplayName, "OUTPUT");
                     Helper.WriteToLog("UserPrincipalName: " + UserPrincipalName, "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText("User " + SubjectUsername + " created account: " + TargetUserName);
+                    List<string> toastLines = new List<string>
+                    {
+                        "User " + SubjectUsername + " created account: " + TargetUserName
+                    };
 
                     string message = "";
                     // Looking at SAM account name
@@ -1144,9 +1144,9 @@ namespace PSP_Console
 
                     if (message != "")
                     {
-                        toast.AddText(message);
+                        toastLines.Add(message);
                     }
-                    toast.Show();
+                    ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
 
                     
 
@@ -1250,10 +1250,8 @@ namespace PSP_Console
                             Helper.WriteToLog("Auth: " + AuthenticationPackageName, "OUTPUT");
                             Helper.WriteToLog("Auth Package: " + LmPackageName, "OUTPUT");
 
-                            // Store in 'Database'
-                            long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                            RecordedEvents.Add(record_id, eventRecord);
-                            string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                            // Store in 'Database' and save XML for user-mode toast agent
+                            string eventRecordString = SaveEventRecord(eventRecord);
 
                             if (Helper.isRemoteIP(IP))
                             {
@@ -1261,15 +1259,8 @@ namespace PSP_Console
                                 Helper.WriteToLog("IP Port: " + Port, "OUTPUT");
                             }
 
-                            // Toast 
-                            string message = "";
-                            // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
-                            ToastContentBuilder toast = new ToastContentBuilder()
-                            .AddArgument("conversationId", eventRecordString)
-                            //.AddText("Logon Failed")
-                            .AddText("Logon Failed Type: " + LogonType);
-
-                            message += "Attempted Username: " + TargetDomainName + "\\" + TargetUserName;
+                            // Toast via user-mode component
+                            string message = "Attempted Username: " + TargetDomainName + "\\" + TargetUserName;
                             if (Helper.isRemoteIP(IP))
                             {
                                 message += "\nIP: " + IP;
@@ -1288,8 +1279,7 @@ namespace PSP_Console
                             {
                                 message += " Auth Package: " + LmPackageName;
                             }
-                            toast.AddText(message);
-                            toast.Show();
+                            ToastHelper.ShowToast(eventRecordString, "Logon Failed Type: " + LogonType, message);
                         }
                     }
                     else
@@ -1361,22 +1351,17 @@ namespace PSP_Console
                             // There seems to be a lot of WMI based group enumeration, I think I would only care if cmd.exe or something did it
                             if (CallerProcessName != @"C:\Windows\System32\wbem\WmiPrvSE.exe")
                             {
-                                // Store in 'Database'
-                                long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                                RecordedEvents.Add(record_id, eventRecord);
-                                string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                                // Store in 'Database' and save XML for user-mode toast agent
+                                string eventRecordString = SaveEventRecord(eventRecord);
 
                                 // Output to File, Console and Pop-up
                                 Helper.WriteToLog("Local Group was Enumerated by " + CallerProcessName, "OUTPUT");
 
-                                // Toast 
-                                ToastContentBuilder toast = new ToastContentBuilder()
-                                .AddArgument("conversationId", eventRecordString)
-                                .AddText("User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName)
-                                .AddText("Process: " + CallerProcessName);
-
-
-                                toast.Show();
+                                // Toast via user-mode component
+                                ToastHelper.ShowToast(
+                                    eventRecordString,
+                                    "User " + SubjectUserName + " Enumerated the groups of local user " + TargetUserName,
+                                    "Process: " + CallerProcessName);
                             }
                         }
                     }
@@ -1429,20 +1414,16 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("User " + SubjectUserName + " deleted local user " + TargetUserName, "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText("User " + SubjectUserName + " deleted local user " + TargetUserName);
-                    //.AddText("The source probably needs to be added to the known-good list");
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(
+                        eventRecordString,
+                        "User " + SubjectUserName + " deleted local user " + TargetUserName);
 
                     
 
@@ -1488,20 +1469,17 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("An Auth Provider was loadead", "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText("An Auth Provider was loadead")
-                    .AddText("The source probably needs to be added to the known-good list");
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(
+                        eventRecordString,
+                        "An Auth Provider was loadead",
+                        "The source probably needs to be added to the known-good list");
 
                     
 
@@ -1557,36 +1535,34 @@ namespace PSP_Console
 
                         )
                     {
-                        // Store in 'Database'
-                        long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                        RecordedEvents.Add(record_id, eventRecord);
-                        string eventRecordString = record_id.ToString("0." + new string('#', 339));
-
+                        // Store in 'Database' and save XML for user-mode toast agent
+                        string eventRecordString = SaveEventRecord(eventRecord);
 
                         // Output to File, Console and Pop-up
                         Helper.WriteToLog("Lsass Logged on a Process: " + LogonProcessName, "OUTPUT");
 
-                        // Toast 
-                        ToastContentBuilder toast = new ToastContentBuilder()
-                        .AddArgument("conversationId", eventRecordString)
-                        .AddText("Lsass Logged on a Process: " + LogonProcessName)
-                        .AddText("Done by: " + SubjectUserName);
+                        // Toast via user-mode component
+                        List<string> toastLines = new List<string>
+                        {
+                            "Lsass Logged on a Process: " + LogonProcessName,
+                            "Done by: " + SubjectUserName
+                        };
 
                         // TODO: Translate SID's to human readble
                         if (LogonProcessName.ToUpper() == "WINLOGON")
                         {
-                            toast.AddText("This might be RDP Traffic");
+                            toastLines.Add("This might be RDP Traffic");
                         }
                         else if (LogonProcessName.ToUpper() == "HTTP.SYS")
                         {
-                            toast.AddText("This might be WinRM being enabled");
+                            toastLines.Add("This might be WinRM being enabled");
                         }
                         else
                         {
-                            toast.AddText("The source probably needs to be added to the known-good list");
+                            toastLines.Add("The source probably needs to be added to the known-good list");
                         }
 
-                        toast.Show();
+                        ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
                     }
 
 
@@ -1634,20 +1610,17 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    RecordedEvents.Add(record_id, eventRecord);
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Dll was given a password due to password reset", "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText("Dll was given a password due to password reset")
-                    .AddText("The Dll probably needs to be added to the known-good list"); ;
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(
+                        eventRecordString,
+                        "Dll was given a password due to password reset",
+                        "The Dll probably needs to be added to the known-good list");
 
                     
 
@@ -1694,20 +1667,17 @@ namespace PSP_Console
                     Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
                     Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
 
-                    // Store in 'Database'
-                    long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                    string eventRecordString = record_id.ToString("0." + new string('#', 339));
-                    RecordedEvents.Add(record_id, eventRecord);
+                    // Store in 'Database' and save XML for user-mode toast agent
+                    string eventRecordString = SaveEventRecord(eventRecord);
 
                     // Output to File, Console and Pop-up
                     Helper.WriteToLog("Lsass Loaded a Package!", "OUTPUT");
 
-                    // Toast 
-                    ToastContentBuilder toast = new ToastContentBuilder()
-                    .AddArgument("conversationId", eventRecordString)
-                    .AddText("Lsass Loaded a Package!")
-                    .AddText("This probably needs to be added to the known-good list"); ;
-                    toast.Show();
+                    // Toast via user-mode component
+                    ToastHelper.ShowToast(
+                        eventRecordString,
+                        "Lsass Loaded a Package!",
+                        "This probably needs to be added to the known-good list");
 
                     
 
@@ -1811,9 +1781,8 @@ namespace PSP_Console
                             Helper.WriteToLog("Auth: " + AuthenticationPackageName, "OUTPUT");
                             Helper.WriteToLog("Auth Package: " + LmPackageName, "OUTPUT");
 
-                            // Store in 'Database'
-                            long record_id = eventRecord.EventRecord.RecordId ?? LongRandom();
-                            RecordedEvents.Add(record_id, eventRecord);
+                            // Store in 'Database' and save XML for user-mode toast agent
+                            string eventRecordString = SaveEventRecord(eventRecord);
 
                             if (Helper.isRemoteIP(IP))
                             {
@@ -1831,31 +1800,18 @@ namespace PSP_Console
                             }
                             else
                             {
-                                // Toast 
-                                string message = "";
-                                // From https://docs.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/adaptive-interactive-toasts?tabs=builder-syntax
-                                // Trying new event id printing to make parsing more reliable:
-                                string eventRecordString = record_id.ToString("0." + new string('#', 339));
-                                ToastContentBuilder toast = new ToastContentBuilder()
-                                .AddArgument("conversationId", eventRecordString);
-
-                                // Title Message
+                                // Toast via user-mode component
+                                List<string> toastLines = new List<string>();
                                 if (logonType == 10)
                                 {
-                                    toast.AddText("RDP Logon Success (Logon Type 10) ");
+                                    toastLines.Add("RDP Logon Success (Logon Type 10) ");
                                 }
-                                //else if ((logonType == 3) && (LogonGuid.Contains("00000000-0000-0000-0000-000000000000")))
-                                //{
-                                //    toast.AddText("WinRM Logon Success (Type 3, Null GUID)");
-                                //}
                                 else
                                 {
-                                    toast.AddText("Logon Success Type: " + LogonType);
+                                    toastLines.Add("Logon Success Type: " + LogonType);
                                 }
 
-
-
-                                message += "User: " + TargetDomainName + "\\" + TargetUserName;
+                                string message = "User: " + TargetDomainName + "\\" + TargetUserName;
                                 if (Helper.isRemoteIP(IP))
                                 {
                                     if (WorkstationName.Trim() == "")
@@ -1874,8 +1830,8 @@ namespace PSP_Console
                                 {
                                     message += " Auth Package: " + LmPackageName;
                                 }
-                                toast.AddText(message);
-                                toast.Show();
+                                toastLines.Add(message);
+                                ToastHelper.ShowToast(eventRecordString, toastLines.ToArray());
                             }
 
                         }

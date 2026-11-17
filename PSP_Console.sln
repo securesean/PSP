@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31729.503
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSP_Console", "PSP_Console\PSP_Console.csproj", "{5ED113F8-4B50-4223-9B36-0DED83EC761A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSP_Notifier", "PSP_Notifier\PSP_Notifier.csproj", "{A8B2C3D4-E5F6-4789-9012-3456789ABCDE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{5ED113F8-4B50-4223-9B36-0DED83EC761A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5ED113F8-4B50-4223-9B36-0DED83EC761A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5ED113F8-4B50-4223-9B36-0DED83EC761A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8B2C3D4-E5F6-4789-9012-3456789ABCDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8B2C3D4-E5F6-4789-9012-3456789ABCDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8B2C3D4-E5F6-4789-9012-3456789ABCDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8B2C3D4-E5F6-4789-9012-3456789ABCDE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

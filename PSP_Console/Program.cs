@@ -1,18 +1,14 @@
-﻿using Microsoft.Toolkit.Uwp.Notifications;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
-using System.Security.Principal;
-using Windows.Foundation.Collections;
-
-
+using System.ServiceProcess;
+using System.Threading;
 
 /*
  * Sean Pierce
  * Started: Dec 2021
  * Personal Security Product
  * I wrote this while I was home sick so I'm sorry for the typo's, bad structure, and dumb logic
- * TODO: Add persistence so auto-start on logon
  * */
 namespace PSP_Console
 {
@@ -20,74 +16,108 @@ namespace PSP_Console
     {
         static EventProcessor eventProcessor;
         private static bool testMode = false;
+        private static bool serviceMode = false;
+        private static bool noWait = false;
         private static List<int> supportedEventIDList = new List<int>();
 
         static void Main(string[] args)
         {
+            bool doInstall = false;
+            bool doUninstall = false;
 
-            // Some argument processing
             foreach (string arg in args)
             {
-                if(arg.ToLower() == "-h" || arg.ToLower() == "--help")
+                string lower = arg.ToLower();
+                if (lower == "-h" || lower == "--help")
                 {
                     printBanner();
                     return;
                 }
-                if(arg.ToLower() == "-t" || arg.ToLower() == "--test")
+                if (lower == "-t" || lower == "--test")
                 {
-                    // launch a thread that will wait for the subscriptions, then execute the tests
                     testMode = true;
                 }
+                if (lower == "-install" || lower == "--install")
+                {
+                    doInstall = true;
+                }
+                if (lower == "-uninstall" || lower == "--uninstall")
+                {
+                    doUninstall = true;
+                }
+                if (lower == "-service" || lower == "--service")
+                {
+                    serviceMode = true;
+                }
+                if (lower == "-nowait" || lower == "--no-wait")
+                {
+                    noWait = true;
+                }
             }
+
+            if (doInstall)
+            {
+                ServiceManager.InstallService();
+                return;
+            }
+
+            if (doUninstall)
+            {
+                ServiceManager.UninstallService();
+                return;
+            }
+
+            if (serviceMode || (!Environment.UserInteractive && args.Length == 0))
+            {
+                ServiceBase.Run(new PSPService());
+                return;
+            }
+
+            ToastHelper.EnsureAlertDirectories();
+            ServiceManager.EnsureUserModeNotifierRunning();
 
             eventProcessor = new EventProcessor();
             eventProcessor.TestMode = testMode;
 
-            // Listen to notification activation
-            ToastNotificationManagerCompat.OnActivated += toastArgs =>
-            {
-                // Obtain the arguments from the notification
-                ToastArguments argsFromToast = ToastArguments.Parse(toastArgs.Argument);
-
-                // Obtain any user input (text boxes, menu selections) from the notification
-                ValueSet userInput = toastArgs.UserInput;
-
-                // Need to dispatch to UI thread if performing UI operations
-                //Application.Current.Dispatcher.Invoke(delegate
-                //{
-                //    // TODO: Show the corresponding content
-                //    MessageBox.Show("Toast activated. Args: " + toastArgs.Argument);
-                //});
-
-                string eventRecordID = toastArgs.Argument.Substring(15);  // Remove "conversationId="
-                System.Console.WriteLine("Opening Event Record " + eventRecordID);
-                eventProcessor.WriteAndOpen(eventRecordID);
-            };
-
             Helper.WriteToLog("Initiallizing EventProcessor. Starting Security Event Subscription");
             subscribe();
-            
-            Helper.WriteToLog("Press Any key to exit");
-            Console.ReadKey();
+
+            if (!noWait && !Console.IsInputRedirected)
+            {
+                Helper.WriteToLog("Press Any key to exit");
+                Console.ReadKey();
+            }
         }
 
         private static void printBanner()
         {
-            Console.WriteLine("Only support -t/--test parameter right now");
-            Helper.WriteToLog("Only support -t/--test parameter right now");
+            string help = "Supported parameters:\n" +
+                          "  -install / --install     Install PSP as a Windows Service and register the user-mode toast notifier\n" +
+                          "  -uninstall / --uninstall Remove the PSP Windows Service and user-mode toast notifier\n" +
+                          "  -t / --test              Trigger self-test security events to verify end-to-end functionality\n" +
+                          "  -h / --help              Show this help message";
+            Console.WriteLine(help);
+            Helper.WriteToLog(help);
         }
 
-        public static void subscribe()
+        public static void RunServiceSubscription(ManualResetEvent stopEvent)
+        {
+            eventProcessor = new EventProcessor();
+            eventProcessor.TestMode = false;
+            Helper.WriteToLog("Initializing EventProcessor in Windows Service mode. Starting Security Event Subscription");
+            subscribe(stopEvent);
+        }
+
+        public static void subscribe(ManualResetEvent stopEvent = null)
         {
             EventLogWatcher SecurityWatcher = null;
             EventLogWatcher SecurityAuditingWatcher = null;
             try
             {
-
                 // If the query is too board and is slowing the system down too much then I could probably improve performance 
                 // by scoping down the query: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN
                 EventLogQuery securityQuery = new EventLogQuery("Security", PathType.LogName,
-                "*[System[" + 
+                "*[System[" +
                 // Logon success/failed
                 "EventID=4624 or EventID=4625 or " +
                 // User Logged on with creds
@@ -114,9 +144,10 @@ namespace PSP_Console
                 // Security System Extention
                 "EventID=4697 or " +    // Server Installed
                 "EventID=4610 or EventID=4611 or EventID=4614 or EventID=4622" +    // Lsass Stuff
-                
+
                 "]]");
 
+                supportedEventIDList.Clear();
                 supportedEventIDList.Add(4624);
                 supportedEventIDList.Add(4625);
                 supportedEventIDList.Add(4648);
@@ -133,30 +164,13 @@ namespace PSP_Console
                 supportedEventIDList.Add(4614);
                 supportedEventIDList.Add(4622);
 
-
-                // Another example:
-                //EventLogQuery SecurityAuditingQuery = new EventLogQuery("Microsoft-Windows-Security-Auditing", PathType.LogName, "*[System[EventID=4697 or EventID=4634]]");
-
                 SecurityWatcher = new EventLogWatcher(securityQuery);
-                //SecurityAuditingWatcher = new EventLogWatcher(SecurityAuditingQuery);
-
-                // Make the watcher listen to the EventRecordWritten
-                // events.  When this event happens, the callback method
-                // (EventLogEventRead) is called.
                 SecurityWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>(EventLogEventRead);
-                //SecurityAuditingWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>(EventLogEventRead);
-
-                // Activate the subscription
                 SecurityWatcher.Enabled = true;
-                //SecurityAuditingWatcher.Enabled = true;
 
-                // Infine loop because when this function exits, the subscription stops
                 Helper.WriteToLog("Subscribed");
-                while (true)
+                while (stopEvent == null || !stopEvent.WaitOne(1000))
                 {
-                    //Helper.WriteToLog("Waiting for Events...");
-                    // Wait for events to occur. 
-                    
                     if (testMode)
                     {
                         // Natively Supported Events
@@ -186,18 +200,29 @@ namespace PSP_Console
                             if (eventProcessor.TestTriggeredEventIDs.Contains(eventID))
                             {
                                 Helper.WriteToLog("Event Supported " + eventID.ToString(), "OUTPUT");
-                            } else
+                            }
+                            else
                             {
                                 Helper.WriteToLog("Event NOT Supported " + eventID.ToString(), "ERROR");
                             }
                         }
 
-                        Helper.WriteToLog("Press Any key to exit");
-                        Console.ReadKey();
+                        if (!noWait && !Console.IsInputRedirected)
+                        {
+                            Helper.WriteToLog("Press Any key to exit");
+                            Console.ReadKey();
+                        }
                         return;
                     }
 
-                    System.Threading.Thread.Sleep(10000);
+                    if (stopEvent == null)
+                    {
+                        System.Threading.Thread.Sleep(10000);
+                    }
+                    else
+                    {
+                        ServiceManager.EnsureUserModeNotifierRunning();
+                    }
                 }
             }
             catch (EventLogReadingException e)
@@ -210,35 +235,30 @@ namespace PSP_Console
             }
             finally
             {
-                // Stop listening to events
-                SecurityWatcher.Enabled = false;
-                //SecurityAuditingWatcher.Enabled = false;
-
                 if (SecurityWatcher != null)
                 {
+                    SecurityWatcher.Enabled = false;
                     SecurityWatcher.Dispose();
                 }
                 if (SecurityAuditingWatcher != null)
                 {
                     SecurityAuditingWatcher.Dispose();
                 }
+                if (eventProcessor != null)
+                {
+                    eventProcessor.Stop();
+                }
             }
-
-            
         }
-
-
 
         // Callback method that gets executed when an event is reported to the subscription.
         public static void EventLogEventRead(object obj, EventRecordWrittenEventArgs eventRecord)
         {
-            // Make sure there was no error reading the event.
             if (eventRecord.EventRecord == null)
             {
                 Helper.WriteToLog("The event instance was null.", "ERROR");
                 return;
             }
-
 
             switch (eventRecord.EventRecord.Id)
             {
@@ -265,55 +285,38 @@ namespace PSP_Console
                     break;
                 case 4722:
                     eventProcessor.process4722_UserEnabled(eventRecord);
-                    break; 
+                    break;
                 case 4732:
                     eventProcessor.process4732_UserAddedToGroup(eventRecord);
-                    break; 
+                    break;
                 case 4648:
                     eventProcessor.process4648_UserLogonWithCreds(eventRecord);
-                    break; 
+                    break;
                 case 4724:
                     eventProcessor.process4724_PasswordReset(eventRecord);
-                    break; 
-
-
-
+                    break;
 
                 // Events supported by "Security System Extension"
                 case 4697:
                     eventProcessor.process4697_ServiceInstalled(eventRecord);
                     break;
                 case 4622:
-                    // Untested: "An Auth Providers or Support Package was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
-                    eventProcessor.process4622_LsassLoadedPackage(eventRecord); 
+                    eventProcessor.process4622_LsassLoadedPackage(eventRecord);
                     break;
                 case 4614:
-                    // Untested: DLLs that Windows calls into whenenever a user changes his/her password. Malicious ones are Rare but deadly
-                    eventProcessor.process4614_NotifcationPackageLoaded(eventRecord); 
+                    eventProcessor.process4614_NotifcationPackageLoaded(eventRecord);
                     break;
                 case 4611:
-                    // Untested: 4611 is logged at startup and occasionally afterwards for each logon process on the system. Possible to make a list of known valid ones
-                    eventProcessor.process4611_LsassLogon(eventRecord); 
+                    eventProcessor.process4611_LsassLogon(eventRecord);
                     break;
                 case 4610:
-                    // Untested: "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
-                    eventProcessor.process4610_LsassLoadedAuthPackage(eventRecord); 
+                    eventProcessor.process4610_LsassLoadedAuthPackage(eventRecord);
                     break;
 
                 default:
                     Helper.WriteToLog("Unsupported Log ID: " + eventRecord.EventRecord.Id, "ERROR");
                     break;
-
             }
-        } // end of function
-
-
-
-
-
-
-
-
-
+        }
     }
 }

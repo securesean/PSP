@@ -63,6 +63,7 @@
     <Compile Include="Group.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="LicenseManager.cs" />
+    <Compile Include="PortScanDetector.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PSPService.cs" />

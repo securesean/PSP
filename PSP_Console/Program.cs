@@ -15,6 +15,7 @@ namespace PSP_Console
     class Program
     {
         static EventProcessor eventProcessor;
+        static PortScanDetector portScanDetector;
         private static bool testMode = false;
         private static bool serviceMode = false;
         private static bool noWait = false;
@@ -194,11 +195,16 @@ namespace PSP_Console
                 SecurityWatcher.EventRecordWritten += new EventHandler<EventRecordWrittenEventArgs>(EventLogEventRead);
                 SecurityWatcher.Enabled = true;
 
+                portScanDetector = new PortScanDetector(new[] { 80, 443, 22 });
+                portScanDetector.Start();
+
                 Helper.WriteToLog("Subscribed");
                 while (stopEvent == null || !stopEvent.WaitOne(1000))
                 {
                     if (testMode)
                     {
+                        portScanDetector.TriggerSelfTestConnection();
+
                         // Natively Supported Events
                         eventProcessor.trigger_process4624_LogonSuccess();
                         eventProcessor.trigger_process4625_LogonFailed();
@@ -299,6 +305,10 @@ namespace PSP_Console
                 if (SecurityAuditingWatcher != null)
                 {
                     SecurityAuditingWatcher.Dispose();
+                }
+                if (portScanDetector != null)
+                {
+                    portScanDetector.Stop();
                 }
                 if (eventProcessor != null)
                 {

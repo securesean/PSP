@@ -154,7 +154,7 @@ namespace PSP_Console
                 "EventID=1102 or " +
 
                 // User Group Enumerated - will probably remove this
-                "EventID=4798 or " +
+                "EventID=4798 or EventID=4799 or " +
 
                 // User Created
                 // This is a great resource: https://ebookreading.net/view/book/EB9781119390640_12.html
@@ -180,6 +180,7 @@ namespace PSP_Console
                 supportedEventIDList.Add(4648);
                 supportedEventIDList.Add(1102);
                 supportedEventIDList.Add(4798);
+                supportedEventIDList.Add(4799);
                 supportedEventIDList.Add(4720);
                 supportedEventIDList.Add(4722);
                 supportedEventIDList.Add(4732);
@@ -210,6 +211,7 @@ namespace PSP_Console
                         eventProcessor.trigger_process4625_LogonFailed();
                         eventProcessor.trigger_process1102_SecuritytLogCleared();
                         eventProcessor.trigger_process4798_LocalGroupEnum();
+                        eventProcessor.trigger_process4799_SecurityGroupEnum();
                         eventProcessor.trigger_process4726_UserDeleted();
                         eventProcessor.trigger_process4720_UserCreated();
                         eventProcessor.trigger_process4722_UserEnabled();
@@ -253,6 +255,7 @@ namespace PSP_Console
                                 if (missingEventIDs.Contains(4726)) eventProcessor.trigger_process4726_UserDeleted();
                                 if (missingEventIDs.Contains(4732)) eventProcessor.trigger_process4732_UserAddedToGroup();
                                 if (missingEventIDs.Contains(4798)) eventProcessor.trigger_process4798_LocalGroupEnum();
+                                if (missingEventIDs.Contains(4799)) eventProcessor.trigger_process4799_SecurityGroupEnum();
                                 System.Threading.Thread.Sleep(5000);
                             }
                         }
@@ -342,6 +345,9 @@ namespace PSP_Console
                 // User Related
                 case 4798:
                     eventProcessor.process4798_LocalGroupEnum(eventRecord);
+                    break;
+                case 4799:
+                    eventProcessor.process4799_SecurityGroupEnum(eventRecord);
                     break;
                 case 4726:
                     eventProcessor.process4726_UserDeleted(eventRecord);

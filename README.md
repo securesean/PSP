@@ -21,7 +21,8 @@ As normal computer user, I've always been a little miffed that I don't have a ba
    - 4625 - Logon Failed 
    - 4697 - Service Installed
    - 1102 - Security Log Cleared
-   - 4798 - Local Group Enum (a little noisy sometimes)
+   - 4798 - Local User Group Membership Enumerated
+   - 4799 - Security-Enabled Local Group Membership Enumerated
    - 4726 - User Deleted
    - 4720 - User Created
    - 4722 - User Enabled
@@ -54,8 +55,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Alert on Windows Security Log Event ID 4799: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4799
-- Alert on Windows Security Log Event ID 4798: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4798
 - Alert on securable objects being accessed: https://github.com/OTRF/Set-AuditRule
 - Download and install sysmon if not already running on the system
 - Look at 7030, 7036, 7045, 7040, 104, 4688, 4672, 4720, 4728, 4732, "4756", "4625", "4673", "4674", "4648", "1102", App - 2, AppLocker - "8003", "8004", "8006", "8007", PowerShell - "4103", "4104", SysMon "1", "7", Test Event Number "1033", "1107" from https://github.com/ManuelBerrueta/BST/blob/main/Windows/Search_EVTX_LogEvents.ps1 and https://github.com/sans-blue-team/DeepBlueCLI

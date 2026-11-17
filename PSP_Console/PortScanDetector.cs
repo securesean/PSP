@@ -164,8 +164,8 @@ namespace PSP_Console
                 string resolvedHostname = ResolveHostName(remoteIp);
                 Helper.WriteToLog("PortScan Recon - Hostname resolution for " + remoteIp + ": " + resolvedHostname, "OUTPUT");
 
-                // 2. Basic TCP port scan of the connecting host
-                List<int> openPortsOnAttacker = ScanAttackerPorts(remoteIp);
+                // 2. Basic TCP port scan of the connecting host (excluding our own honeypot ports if loopback)
+                List<int> openPortsOnAttacker = ScanAttackerPorts(remoteIp, 400, !Helper.isRemoteIP(remoteIp) ? ActiveListeningPorts : null);
                 string openPortsSummary = openPortsOnAttacker.Count > 0
                     ? string.Join(", ", openPortsOnAttacker)
                     : "None detected (or filtered)";
@@ -204,13 +204,17 @@ namespace PSP_Console
             return "Unresolved";
         }
 
-        public static List<int> ScanAttackerPorts(string ipAddress, int timeoutMs = 400)
+        public static List<int> ScanAttackerPorts(string ipAddress, int timeoutMs = 400, ICollection<int> skipPorts = null)
         {
             List<int> openPorts = new List<int>();
             object listLock = new object();
 
             Parallel.ForEach(ReconPorts, port =>
             {
+                if (skipPorts != null && skipPorts.Contains(port))
+                {
+                    return;
+                }
                 try
                 {
                     using (TcpClient tcp = new TcpClient())

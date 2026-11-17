@@ -366,6 +366,12 @@ namespace PSP_Console
             Helper.WriteToLog("Enumerating localgroup: " + output, "TEST");
         }
 
+        internal void trigger_process4799_SecurityGroupEnum()
+        {
+            string output = RunTestProcess("net.exe", "localgroup Administrators");
+            Helper.WriteToLog("Enumerating security-enabled localgroup (4799): " + output, "TEST");
+        }
+
         internal void trigger_process4625_LogonFailed()
         {
             IntPtr token;
@@ -1083,6 +1089,76 @@ namespace PSP_Console
             }
         } // process4798_LocalGroupEnum
 
+        // Event ID 4799: A security-enabled local group membership was enumerated.
+        internal void process4799_SecurityGroupEnum(EventRecordWrittenEventArgs eventRecord)
+        {
+            if (TestMode)
+                TestTriggeredEventIDs.Add(4799);
+
+            String[] xPathArray = new[]
+                {
+                    "Event/EventData/Data[@Name='SubjectUserName']",
+                    "Event/EventData/Data[@Name='TargetUserName']",
+                    "Event/EventData/Data[@Name='TargetSid']",
+                    "Event/EventData/Data[@Name='CallerProcessName']",
+                    "Event/EventData/Data[@Name='CallerProcessId']",
+                };
+
+            using (var loginEventPropertySelector = new EventLogPropertySelector(xPathArray))
+            {
+                try
+                {
+                    IList<object> logEventProps = ((EventLogRecord)eventRecord.EventRecord).GetPropertyValues(loginEventPropertySelector);
+                    for (int i = 0; i < logEventProps.Count; i++)
+                    {
+                        if (logEventProps[i] == null || logEventProps[i].ToString() == "-")
+                        {
+                            logEventProps[i] = "";
+                        }
+                    }
+                    Helper.WriteToLog("Description: \n" + eventRecord.EventRecord.FormatDescription());
+                    Helper.WriteToLog("Description (XML): \n" + eventRecord.EventRecord.ToXml());
+
+                    string SubjectUserName = logEventProps[0].ToString();
+                    string TargetGroupName = logEventProps[1].ToString();
+                    string TargetSid = logEventProps[2].ToString();
+                    string CallerProcessName = logEventProps[3].ToString();
+                    string CallerProcessId = logEventProps[4].ToString();
+
+                    if (RuleEngine.ShouldAlertLocalGroupEnum(SubjectUserName, CallerProcessName, CallerProcessId))
+                    {
+                        string eventRecordString = SaveEventRecord(eventRecord);
+                        Helper.WriteToLog("Security-Enabled Local Group '" + TargetGroupName + "' (" + TargetSid + ") was Enumerated by " + CallerProcessName, "OUTPUT");
+
+                        ToastHelper.ShowToast(
+                            4799,
+                            eventRecordString,
+                            new List<string>
+                            {
+                                "User " + SubjectUserName + " enumerated security group '" + TargetGroupName + "'",
+                                "Process: " + CallerProcessName + " (PID: " + CallerProcessId + ")"
+                            });
+                    }
+                }
+                catch (System.ArgumentOutOfRangeException ex)
+                {
+                    Helper.LogCrash("XPath Array OutOfRange during Event 4799 Parsing", ex);
+                }
+                catch (System.NullReferenceException ex)
+                {
+                    Helper.LogCrash("Unexpected NullReference during Event 4799 Parsing", ex);
+                }
+                catch (Exception ex)
+                {
+                    Helper.LogCrash("Unexpected Exception during Event 4799 Parsing", ex);
+                }
+                finally
+                {
+                    Helper.WriteToLog("---------------------------------------");
+                }
+            }
+        } // process4799_SecurityGroupEnum
+
         
         // TODO: Figure out if I can do this via RPC and do it remotely
         internal void process4726_UserDeleted(EventRecordWrittenEventArgs eventRecord)
@@ -1145,7 +1221,7 @@ namespace PSP_Console
                     Helper.WriteToLog("---------------------------------------");
                 }
             }
-        } // process4798_LocalGroupEnum
+        } // process4726_UserDeleted
 
         // "An Auth Provider was loadead. Malicious ones are Rare but deadly. Possible to make a list of known valid ones"
         internal void process4610_LsassLoadedAuthPackage(EventRecordWrittenEventArgs eventRecord)

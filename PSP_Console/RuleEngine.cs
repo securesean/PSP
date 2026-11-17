@@ -333,6 +333,10 @@ namespace PSP_Console
             {
                 return false;
             }
+            if (callerProcessName.IndexOf("PSP_Console.exe", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
             RuleConfig cfg = GetConfig();
             if (cfg.ExcludedGroupEnumProcesses != null)
             {

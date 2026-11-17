@@ -126,7 +126,7 @@ namespace PSP_Console
             {
                 using (ManualResetEvent waitEvent = new ManualResetEvent(noWait))
                 {
-                    SecurityEvaluator.RunLockdownMode(waitEvent);
+                    SecurityEvaluator.RunLockdownMode(waitEvent, !noWait);
                 }
                 return;
             }

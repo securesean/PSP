@@ -538,26 +538,60 @@ namespace PSP_Console
             return enabled;
         }
 
-        public static void RunLockdownMode(ManualResetEvent stopEvent = null)
+        private class ServiceOriginalState
+        {
+            public string ServiceName { get; set; }
+            public ServiceControllerStatus Status { get; set; }
+            public int? RegistryStartValue { get; set; }
+        }
+
+        public static void RunLockdownMode(ManualResetEvent stopEvent = null, bool waitForInteractiveInput = true)
         {
             Helper.WriteToLog("===============================================================================", "OUTPUT");
             Helper.WriteToLog("                     ENGAGING PSP LOCKDOWN MODE                                ", "OUTPUT");
             Helper.WriteToLog("===============================================================================", "OUTPUT");
 
-            string[] servicesToStop = new[] { "WinRM", "LanmanServer", "TermService", "sshd" };
-            foreach (string svc in servicesToStop)
+            string[] targetServices = new[] { "WinRM", "LanmanServer", "TermService", "sshd" };
+            List<ServiceOriginalState> originalStates = new List<ServiceOriginalState>();
+
+            foreach (string svc in targetServices)
             {
                 try
                 {
-                    if (IsServiceRunning(svc))
+                    using (ServiceController sc = new ServiceController(svc))
                     {
-                        Helper.WriteToLog("Lockdown: Stopping service '" + svc + "'...", "OUTPUT");
-                        using (ServiceController sc = new ServiceController(svc))
+                        ServiceControllerStatus currentStatus = sc.Status;
+                        int? regStart = null;
+                        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\" + svc, false))
                         {
+                            if (key != null && key.GetValue("Start") != null)
+                            {
+                                regStart = Convert.ToInt32(key.GetValue("Start"));
+                            }
+                        }
+
+                        originalStates.Add(new ServiceOriginalState
+                        {
+                            ServiceName = svc,
+                            Status = currentStatus,
+                            RegistryStartValue = regStart
+                        });
+
+                        Helper.WriteToLog(string.Format("Lockdown: Recorded original state for '{0}' (Status={1}, StartType={2})",
+                            svc, currentStatus, regStart.HasValue ? regStart.Value.ToString() : "N/A"));
+
+                        if (currentStatus == ServiceControllerStatus.Running || currentStatus == ServiceControllerStatus.StartPending)
+                        {
+                            Helper.WriteToLog("Lockdown: Stopping service '" + svc + "'...", "OUTPUT");
                             sc.Stop();
-                            sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(5));
+                            sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(10));
+                            Helper.WriteToLog("Lockdown: Service '" + svc + "' stopped.", "OUTPUT");
                         }
                     }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Service is not installed on this machine
                 }
                 catch (Exception ex)
                 {
@@ -568,13 +602,100 @@ namespace PSP_Console
             // Listen on WinRM (5985, 5986), SMB (445), RDP (3389), SSH (22), HTTP/HTTPS (80, 443) to block & alert on connection attempts
             int[] lockdownPorts = new[] { 22, 80, 443, 445, 3389, 5985, 5986 };
             PortScanDetector detector = new PortScanDetector(lockdownPorts);
-            detector.Start();
 
-            Helper.WriteToLog("Lockdown active. Listening on ports [" + string.Join(", ", detector.ActiveListeningPorts) + "] to block & alert on remote connections.", "OUTPUT");
-            if (stopEvent != null)
+            ConsoleCancelEventHandler cancelHandler = (sender, e) =>
             {
-                stopEvent.WaitOne();
+                e.Cancel = true;
+                if (stopEvent != null)
+                {
+                    stopEvent.Set();
+                }
+            };
+
+            try
+            {
+                Console.CancelKeyPress += cancelHandler;
+                detector.Start();
+
+                Helper.WriteToLog("Lockdown active. Listening on ports [" + string.Join(", ", detector.ActiveListeningPorts) + "] to block & alert on remote connections.", "OUTPUT");
+
+                if (waitForInteractiveInput)
+                {
+                    Helper.WriteToLog("Press Any key (or Ctrl+C) to stop Lockdown mode and restore services to their original state...", "OUTPUT");
+                    if (!Console.IsInputRedirected)
+                    {
+                        while (!Console.KeyAvailable && (stopEvent == null || !stopEvent.WaitOne(200)))
+                        {
+                        }
+                        if (Console.KeyAvailable)
+                        {
+                            Console.ReadKey(true);
+                        }
+                    }
+                    else
+                    {
+                        Console.ReadLine();
+                    }
+                }
+                else if (stopEvent != null)
+                {
+                    stopEvent.WaitOne();
+                }
+            }
+            finally
+            {
+                Console.CancelKeyPress -= cancelHandler;
+                Helper.WriteToLog("Exiting Lockdown mode. Releasing blocked ports and restoring services to original state...", "OUTPUT");
                 detector.Stop();
+                RestoreServicesToOriginalState(originalStates);
+                Helper.WriteToLog("Lockdown mode exited and services restored.", "OUTPUT");
+            }
+        }
+
+        private static void RestoreServicesToOriginalState(List<ServiceOriginalState> originalStates)
+        {
+            if (originalStates == null) return;
+
+            foreach (ServiceOriginalState state in originalStates)
+            {
+                try
+                {
+                    if (state.RegistryStartValue.HasValue)
+                    {
+                        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\" + state.ServiceName, true))
+                        {
+                            if (key != null)
+                            {
+                                key.SetValue("Start", state.RegistryStartValue.Value, RegistryValueKind.DWord);
+                            }
+                        }
+                    }
+
+                    using (ServiceController sc = new ServiceController(state.ServiceName))
+                    {
+                        sc.Refresh();
+                        if (state.Status == ServiceControllerStatus.Running && sc.Status != ServiceControllerStatus.Running)
+                        {
+                            Helper.WriteToLog("Lockdown Restore: Starting service '" + state.ServiceName + "' back to Running state...", "OUTPUT");
+                            sc.Start();
+                            sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
+                            Helper.WriteToLog("Lockdown Restore: Service '" + state.ServiceName + "' is now " + sc.Status + ".", "OUTPUT");
+                        }
+                        else if (state.Status == ServiceControllerStatus.Stopped && sc.Status != ServiceControllerStatus.Stopped)
+                        {
+                            sc.Stop();
+                            sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(10));
+                        }
+                        else
+                        {
+                            Helper.WriteToLog("Lockdown Restore: Service '" + state.ServiceName + "' remained in original state (" + sc.Status + ").");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Helper.WriteToLog("Lockdown Restore: Failed to restore service '" + state.ServiceName + "': " + ex.Message, "ERROR");
+                }
             }
         }
 

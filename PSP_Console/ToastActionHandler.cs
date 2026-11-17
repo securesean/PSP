@@ -117,7 +117,7 @@ namespace PSP_Console
                 string ip = ipMatch.Groups[1].Value;
                 buttons.Add(new ToastButtonItem
                 {
-                    Content = "Block IP (" + ip + ")",
+                    Content = "Block: " + ip + "",
                     Arguments = "action=block_ip&ip=" + Uri.EscapeDataString(ip),
                     IconUri = new Uri(BlockIpIconPath).AbsoluteUri
                 });
@@ -132,7 +132,7 @@ namespace PSP_Console
                 {
                     buttons.Add(new ToastButtonItem
                     {
-                        Content = "Kill Service",
+                        Content = "Kill: " + svc,
                         Arguments = "action=kill_service&service=" + Uri.EscapeDataString(svc),
                         IconUri = new Uri(KillServiceIconPath).AbsoluteUri
                     });
@@ -148,7 +148,7 @@ namespace PSP_Console
                 {
                     buttons.Add(new ToastButtonItem
                     {
-                        Content = "Check VT for Exe",
+                        Content = "VT",
                         Arguments = "action=check_vt&path=" + Uri.EscapeDataString(exePath),
                         IconUri = new Uri(CheckVtIconPath).AbsoluteUri
                     });
@@ -157,7 +157,7 @@ namespace PSP_Console
                 {
                     buttons.Add(new ToastButtonItem
                     {
-                        Content = "Scan YARA / Watch",
+                        Content = "YARA",
                         Arguments = "action=yara_scan&path=" + Uri.EscapeDataString(exePath),
                         IconUri = new Uri(WatchProcIconPath).AbsoluteUri
                     });
@@ -166,26 +166,14 @@ namespace PSP_Console
 
             // 4. If user account is in alert, add 'Log off & Reset Pass'
             Match userMatch = Regex.Match(combined, @"(?:User:|local user|account:)\s*(?:[^\\\r\n]+\\)?([A-Za-z0-9_\-\.]+)", RegexOptions.IgnoreCase);
-            if (userMatch.Success && buttons.Count < 4)
-            {
-                string targetUser = userMatch.Groups[1].Value.Trim();
-                if (!string.IsNullOrEmpty(targetUser))
-                {
-                    buttons.Add(new ToastButtonItem
-                    {
-                        Content = "Logoff & Reset Pass",
-                        Arguments = "action=reset_user&user=" + Uri.EscapeDataString(targetUser),
-                        IconUri = new Uri(ResetUserIconPath).AbsoluteUri
-                    });
-                }
-            }
+            
 
             // 5. Add 'Launch Autoruns' if space permits
             if (buttons.Count < 4)
             {
                 buttons.Add(new ToastButtonItem
                 {
-                    Content = "Launch Autoruns",
+                    Content = "Autoruns",
                     Arguments = "action=autoruns",
                     IconUri = new Uri(AutorunsIconPath).AbsoluteUri
                 });
@@ -196,7 +184,7 @@ namespace PSP_Console
             {
                 buttons.Add(new ToastButtonItem
                 {
-                    Content = "Never show this again",
+                    Content = "Don't show again",
                     Arguments = "action=suppress&signature=" + Uri.EscapeDataString(signature) + "&eventId=" + eventId,
                     IconUri = new Uri(MuteIconPath).AbsoluteUri
                 });
@@ -310,8 +298,10 @@ namespace PSP_Console
                     using (WebClient wc = new WebClient())
                     {
                         wc.DownloadFile("https://download.sysinternals.com/files/Autoruns.zip", zipPath);
+                        Helper.WriteToLog("Autoruns downloaded to: " + zipPath, "OUTPUT");
                     }
                     ZipFile.ExtractToDirectory(zipPath, toolsDir);
+                    Helper.WriteToLog("Autoruns downloaded and extracted to: " + toolsDir, "OUTPUT");
                 }
 
                 if (File.Exists(exePath))
@@ -322,6 +312,8 @@ namespace PSP_Console
                         Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
                     }
                     return exePath;
+                } else {
+                    Helper.WriteToLog("Autoruns executable not found after extraction.", "ERROR");
                 }
             }
             catch (Exception ex)
@@ -333,6 +325,7 @@ namespace PSP_Console
 
         private static string RunCmd(string fileName, string args)
         {
+            Helper.WriteToLog("Executing command: " + fileName + " " + args, "OUTPUT");
             Process p = new Process();
             p.StartInfo.FileName = fileName;
             p.StartInfo.Arguments = args;
@@ -343,6 +336,7 @@ namespace PSP_Console
             p.Start();
             string output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
             p.WaitForExit(10000);
+            Helper.WriteToLog("Executed command: " + fileName + " " + args + "\nOutput:\n" + output, "OUTPUT");
             return output;
         }
     }

@@ -42,6 +42,9 @@ namespace PSP_Console
         {
             bool doInstall = false;
             bool doUninstall = false;
+            bool doSecurityEval = false;
+            bool doLockdown = false;
+            bool doAutoruns = false;
 
             foreach (string arg in args)
             {
@@ -60,6 +63,18 @@ namespace PSP_Console
                 {
                     SystemStateMonitor.EnsureSysmonInstalled();
                     return;
+                }
+                if (lower == "-securityevaluation" || lower == "--securityevaluation" || lower == "--security-evaluation")
+                {
+                    doSecurityEval = true;
+                }
+                if (lower == "-lockdown" || lower == "--lockdown")
+                {
+                    doLockdown = true;
+                }
+                if (lower == "-autoruns" || lower == "--autoruns")
+                {
+                    doAutoruns = true;
                 }
                 if (lower == "-t" || lower == "--test")
                 {
@@ -81,6 +96,27 @@ namespace PSP_Console
                 {
                     noWait = true;
                 }
+            }
+
+            if (doSecurityEval)
+            {
+                SecurityEvaluator.RunSecurityEvaluation(doAutoruns);
+                return;
+            }
+
+            if (doAutoruns)
+            {
+                ToastActionHandler.LaunchOrDownloadAutoruns();
+                return;
+            }
+
+            if (doLockdown)
+            {
+                using (ManualResetEvent waitEvent = new ManualResetEvent(noWait))
+                {
+                    SecurityEvaluator.RunLockdownMode(waitEvent);
+                }
+                return;
             }
 
             if (doInstall)
@@ -125,11 +161,16 @@ namespace PSP_Console
         private static void printBanner()
         {
             string help = "Supported parameters:\n" +
-                          "  -install / --install     Install PSP as a Windows Service and register the user-mode toast notifier\n" +
-                          "  -uninstall / --uninstall Remove the PSP Windows Service and user-mode toast notifier\n" +
-                          "  -t / --test              Trigger self-test security events to verify end-to-end functionality\n" +
-                          "  -license / --eula        Display Basic License and End-User License Agreement (EULA)\n" +
-                          "  -h / --help              Show this help message";
+                          "  -install / --install        Install PSP as a Windows Service and register the user-mode toast notifier\n" +
+                          "  -uninstall / --uninstall    Remove the PSP Windows Service and user-mode toast notifier\n" +
+                          "  -SecurityEvaluation         Audit WinRM/RDP/SMB/SSH, Guest & Admin accounts, LocalAccountTokenFilterPolicy,\n" +
+                          "                              recursive Admin/Remote groups, weird services, listening ports, and AuditPol\n" +
+                          "  -Lockdown                   Stop WinRM/LanMan/RDP/SSH and listen on their ports to block & alert on connections\n" +
+                          "  -sysmon                     Download and install Sysinternals Sysmon if not already running\n" +
+                          "  -autoruns                   Download and launch Sysinternals Autoruns\n" +
+                          "  -t / --test                 Trigger self-test security events to verify end-to-end functionality\n" +
+                          "  -license / --eula           Display Basic License and End-User License Agreement (EULA)\n" +
+                          "  -h / --help                 Show this help message";
             Console.WriteLine(help);
             Helper.WriteToLog(help);
         }

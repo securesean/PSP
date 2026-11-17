@@ -10,6 +10,8 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 ## Features:
 - Can be installed as a persistent Windows Service (`-install` / `-uninstall`) running as `SYSTEM` (`PSPService`) with a separate user-mode notification agent (`PSP_Notifier.exe`) that displays Toast notifications in the interactive user session
 - Structured rule engine (`RuleEngine` & `%ProgramData%\PSP_Logs\rules_config.json`) for evaluating logon exclusions, process filters, and well-known group SIDs
+- `-SecurityEvaluation` mode: performs comprehensive host security evaluation including WinRM/RDP/SMB/SSH status, STIG checks on Guest and RID 500 Administrator accounts, `LocalAccountTokenFilterPolicy`, direct and recursive local/domain Administrator and Remote Access group membership enumeration, weird/unquoted service binary path detection, active TCP listening ports mapped to processes and Windows Services, `Security System Extension` audit status, and Sysinternals Autoruns launcher (`-autoruns`)
+- `-Lockdown` mode: stops remote access services (`WinRM`, `LanmanServer`, `TermService`, `sshd`) and binds honeypot listeners on their ports to block and alert on connection attempts
 - Built-in self-performance and memory bloat monitor (`SelfPerformanceMonitor`) that tracks Working Set, Private Memory, Managed Heap, Handles, and Thread counts, bounded event caching, and automatic GC reclamation
 - Real-time system state monitoring (`SystemStateMonitor`): alerts if `LocalAccountTokenFilterPolicy` registry value is modified, if Windows Firewall is disabled on any profile, if an inbound allow Firewall rule is added, or if a Windows Service starts listening on a new TCP port; also supports automatically downloading and installing Sysmon (`-sysmon`)
 - Listens on common ports (`80`, `443`, `22`) to detect and alert on attempted port scanning / unauthorized connections, and automatically performs reverse DNS hostname resolution and a basic TCP port scan against the connecting host
@@ -65,20 +67,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 ## How to Compile:
 - Right click on the project in the "Solution Explorer" and choose, "Manage NuGet Packages" and install, "Microsoft.Toolkit.Uwp.Notifications"
 - Click Build Solution
-
-## TODO - Add a "-SecurityEvaluation" option 
-- Do basic security checks such as WinRm/RDP is enabled, Guest is enabled and is in groups, the Admin account is enabled with default name. Look at stigs for inspiration . 
-- Print basic information such as "X number of users can access this computer remotely via RDP, SMB/RPC/DCOM, WinRM"
-- Check local token filter policy  
-- Download and execute autoruns for the user
-- Make a 'Lockdown' mode that will stop WinRM,LanMan,RDP,SSH and start listening on those ports instead to block them
-- The valuation mode will also:
-   - list all users/groups in local admin groups
-   - resursively lookup domain groups and users in admin groups
-   - list weird services
-   - list and programs listening on any ports
-   - list the services running on those ports 
-   - detect if "System Security Extention" is enabled
 
 # TODO - Possible Future
 - Subscribe to events on a remote computer: https://docs.microsoft.com/en-us/previous-versions/bb671202(v=vs.90)?redirectedfrom=MSDN

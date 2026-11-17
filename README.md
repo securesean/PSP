@@ -10,6 +10,7 @@ As normal computer user, I've always been a little miffed that I don't have a ba
 ## Features:
 - Can be installed as a persistent Windows Service (`-install` / `-uninstall`) running as `SYSTEM` (`PSPService`) with a separate user-mode notification agent (`PSP_Notifier.exe`) that displays Toast notifications in the interactive user session
 - Structured rule engine (`RuleEngine` & `%ProgramData%\PSP_Logs\rules_config.json`) for evaluating logon exclusions, process filters, and well-known group SIDs
+- Real-time system state monitoring (`SystemStateMonitor`): alerts if `LocalAccountTokenFilterPolicy` registry value is modified, if Windows Firewall is disabled on any profile, if an inbound allow Firewall rule is added, or if a Windows Service starts listening on a new TCP port; also supports automatically downloading and installing Sysmon (`-sysmon`)
 - Listens on common ports (`80`, `443`, `22`) to detect and alert on attempted port scanning / unauthorized connections, and automatically performs reverse DNS hostname resolution and a basic TCP port scan against the connecting host
 - When something attempts to remotely accessing/scanning/attacking my machine a toast notification will notify the user
 - Full details are writen to `%ProgramData%\PSP_Logs` (with explicit `yyyy-MM-dd HH:mm:ss` timestamps and dedicated crash/exception diagnostics in `PSP_CrashLog.txt`)
@@ -65,11 +66,6 @@ WARNING: I am not a Windows Logging expert and I have observed that making these
 - Click Build Solution
 
 ## TODO:
-- Download and install sysmon if not already running on the system
-- Alert if local token filter policy is changed (the reg key)
-- Alert if FireWall is disabled
-- Alert if FireWall rule has been added so a process can start listening
-- Alert if a service starts listening on a port
 - Add default actions to the Toast notifications ('Block IP', 'Start watching for new processes as that user/Service', 'scan for yara sigs', 'Check VT for Exe', 'Launch Autoruns', 'Kill Service', 'Log off user and reset password', etc.)
 - Add a better sound for the Toast Notification
 - Add icons for the Toast Notification

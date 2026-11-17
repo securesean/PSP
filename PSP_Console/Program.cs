@@ -17,6 +17,7 @@ namespace PSP_Console
         static EventProcessor eventProcessor;
         static PortScanDetector portScanDetector;
         static MultiChannelEventMonitor multiChannelMonitor;
+        static SystemStateMonitor systemStateMonitor;
         private static bool testMode = false;
         private static bool serviceMode = false;
         private static bool noWait = false;
@@ -52,6 +53,11 @@ namespace PSP_Console
                 if (lower == "-license" || lower == "--license" || lower == "-eula" || lower == "--eula")
                 {
                     LicenseManager.DisplayLicense();
+                    return;
+                }
+                if (lower == "-sysmon" || lower == "--sysmon" || lower == "--install-sysmon")
+                {
+                    SystemStateMonitor.EnsureSysmonInstalled();
                     return;
                 }
                 if (lower == "-t" || lower == "--test")
@@ -203,6 +209,9 @@ namespace PSP_Console
                 multiChannelMonitor = new MultiChannelEventMonitor();
                 multiChannelMonitor.Start();
 
+                systemStateMonitor = new SystemStateMonitor();
+                systemStateMonitor.Start();
+
                 Helper.WriteToLog("Subscribed");
                 while (stopEvent == null || !stopEvent.WaitOne(1000))
                 {
@@ -312,6 +321,10 @@ namespace PSP_Console
                 if (SecurityAuditingWatcher != null)
                 {
                     SecurityAuditingWatcher.Dispose();
+                }
+                if (systemStateMonitor != null)
+                {
+                    systemStateMonitor.Stop();
                 }
                 if (multiChannelMonitor != null)
                 {
